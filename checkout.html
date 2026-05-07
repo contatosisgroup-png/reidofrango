@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout | Rei do Frango</title>
+  <meta name="description" content="Checkout de pedido do Rei do Frango com pagamento, acompanhamentos e confirmação de pedido."/>
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="container nav-wrap">
+      <a class="brand" href="index.html" aria-label="Rei do Frango - voltar ao início">
+        <img src="assets/icon.png" alt="Logo Rei do Frango">
+        <span>Rei do Frango</span>
+      </a>
+      <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false">Menu</button>
+      <nav class="main-nav" id="mainNav">
+        <a href="index.html#cardapio">Cardápio</a>
+        <a href="index.html#promocao">Promoção</a>
+        <a href="index.html#contato">Contato</a>
+      </nav>
+      <a class="btn btn-primary nav-cta" href="index.html">Voltar ao site</a>
+    </div>
+  </header>
+
+  <main class="checkout-page">
+    <section class="checkout-hero container">
+      <div>
+        <p class="eyebrow">Checkout</p>
+        <h1>Finalizar pedido com segurança</h1>
+        <p>Adicione acompanhamentos, escolha a forma de pagamento e confira o pedido antes da impressão.</p>
+      </div>
+      <div class="checkout-promo-card">
+        <img src="assets/icon.png" alt="" aria-hidden="true" class="promo-logo">
+        <div>
+          <span class="promo-label">Promoção relâmpago</span>
+          <h2>Combo Rei com 15% OFF</h2>
+          <p>Frango + acompanhamento + bebida por preço especial.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="checkout-grid container">
+      <article class="checkout-card">
+        <div class="section-head">
+          <p class="eyebrow">Monte seu pedido</p>
+          <h2>Escolha os produtos</h2>
+          <p class="subtext">Selecione quantos itens quiser de cada categoria.</p>
+        </div>
+
+        <div id="productsCatalog" class="products-catalog">
+          <!-- Produtos serão inseridos aqui via JavaScript -->
+        </div>
+      </article>
+
+      <article class="checkout-card checkout-payment-card">
+        <div class="section-head">
+          <p class="eyebrow">Resumo do pedido</p>
+          <h2>Itens selecionados</h2>
+        </div>
+
+        <div id="selectedItemsList" class="selected-items-list">
+          <!-- Itens selecionados aparecerão aqui -->
+        </div>
+
+        <div class="section-head">
+          <p class="eyebrow">Acompanhamentos</p>
+          <p class="subtext">Extras para deixar seu pedido ainda mais completo.</p>
+        </div>
+        <div id="addonsGrid" class="addons-grid"></div>
+
+        <div class="section-head">
+          <p class="eyebrow">Pagamento</p>
+          <h2>Escolha a melhor forma</h2>
+        </div>
+
+        <form id="checkoutForm" class="checkout-form">
+          <label>
+            Nome completo
+            <input type="text" id="checkoutName" autocomplete="name" required>
+          </label>
+          <label>
+            Telefone / WhatsApp
+            <input type="tel" id="checkoutPhone" autocomplete="tel" inputmode="tel" required>
+          </label>
+          <label>
+            Endereço de entrega
+            <input type="text" id="checkoutAddress" autocomplete="street-address" required>
+          </label>
+          <label>
+            Observações para a cozinha
+            <input type="text" id="checkoutNote" placeholder="Ex: sem cebola, sem pimenta">
+          </label>
+
+          <label>
+            Método de pagamento
+            <select id="checkoutPaymentMethod" required>
+              <option value="Pix">Pix</option>
+              <option value="Cartão de crédito">Cartão de crédito</option>
+              <option value="Cartão de débito">Cartão de débito</option>
+              <option value="Dinheiro">Dinheiro</option>
+            </select>
+          </label>
+
+          <div id="cashSection" class="payment-details" hidden>
+            <label>
+              Valor pago
+              <input type="text" id="checkoutAmountPaid" placeholder="R$ 0,00" inputmode="decimal">
+            </label>
+            <p class="small-note">Informe o valor do cliente para calcular o troco automaticamente.</p>
+            <p class="checkout-change">Troco: <strong id="checkoutChange">R$ 0,00</strong></p>
+          </div>
+
+          <div id="paymentReferenceSection" class="payment-details" hidden>
+            <label>
+              Referência / comprovante
+              <input type="text" id="checkoutPaymentReference" placeholder="Ex: PIX12345 ou nº comprovante" required>
+            </label>
+            <p class="small-note">Preencha este campo para Pix e cartão, para confirmar o pagamento.</p>
+          </div>
+
+          <div id="pixSection" class="payment-details" hidden>
+            <p class="small-note">Chave Pix para pagamento:</p>
+            <div class="pix-key-row">
+              <input type="text" id="pixPhoneNumber" class="pix-key-input" value="(21) 96564-8765" readonly>
+              <button type="button" id="copyPixButton" class="btn btn-secondary pix-copy-btn">Copiar</button>
+            </div>
+            <p class="small-note">Copie o número acima e cole no aplicativo do seu banco para fazer o pagamento por Pix.</p>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-line">
+              <span>Pedido</span>
+              <strong id="summarySubtotal">R$ 0,00</strong>
+            </div>
+            <div class="summary-line">
+              <span>Acompanhamentos</span>
+              <strong id="summaryExtras">R$ 0,00</strong>
+            </div>
+            <div class="summary-line total-line">
+              <span>Total</span>
+              <strong id="summaryTotal">R$ 0,00</strong>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-block" type="submit" id="checkoutSubmitBtn">Finalizar compra</button>
+          <p class="order-status" id="checkoutStatus" aria-live="polite"></p>
+        </form>
+      </article>
+    </section>
+
+    <section id="checkoutResult" class="checkout-result container" hidden>
+      <h2>Pedido enviado com sucesso</h2>
+      <p id="resultMessage"></p>
+      <div class="result-grid">
+        <div>
+          <strong>Código do pedido</strong>
+          <p id="resultCode"></p>
+        </div>
+        <div>
+          <strong>Tempo estimado</strong>
+          <p id="resultEta"></p>
+        </div>
+        <div>
+          <strong>Forma de pagamento</strong>
+          <p id="resultPayment"></p>
+        </div>
+      </div>
+      <a class="btn btn-ghost" href="index.html">Voltar para o cardápio</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <p>Rei do Frango - Sabor que comanda a mesa.</p>
+      <a href="index.html">Voltar ao topo</a>
+    </div>
+  </footer>
+
+  <script src="checkout.js"></script>
+</body>
+</html>

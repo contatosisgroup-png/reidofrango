@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rei do Frango | Sabor que comanda a mesa</title>
+  <meta name="description" content="Rei do Frango: frango assado, crocante e suculento com combos especiais e entrega rápida.">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="container nav-wrap">
+      <a class="brand" href="#inicio" aria-label="Rei do Frango - inicio">
+        <img src="assets/icon.png" alt="Logo Rei do Frango">
+        <span>Rei do Frango</span>
+      </a>
+      <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false">Menu</button>
+      <nav class="main-nav" id="mainNav">
+        <a href="#cardapio">Cardápio</a>
+        <a href="#promocao">Promoção</a>
+        <a href="#depoimentos">Depoimentos</a>
+        <a href="#contato">Contato</a>
+      </nav>
+      <a class="btn btn-primary nav-cta" href="checkout.html">Pedir Agora</a>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero container">
+      <div class="hero-text reveal">
+        <p class="eyebrow" id="heroBadge"></p>
+        <h1 id="heroTitle"></h1>
+        <p id="heroText"></p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="checkout.html">Fazer pedido</a>
+          <a class="btn btn-ghost" href="#promocao">Ver Promoção</a>
+        </div>
+      </div>
+      <div class="hero-card reveal delay-1">
+        <p class="hero-kicker" id="featuredKicker"></p>
+        <h2 id="featuredTitle"></h2>
+        <p id="featuredText"></p>
+        <p class="price" id="featuredPrice"></p>
+        <button class="btn btn-dark choose-item" id="featuredChooseBtn" type="button">Quero esse prato</button>
+      </div>
+    </section>
+
+    <section id="promocao" class="promo container reveal" aria-live="polite">
+      <div class="promo-header">
+        <span class="promo-badge pulse">
+          <img src="assets/icon.png" alt="Logo" aria-hidden="true">
+          <span id="promoBadge"></span>
+        </span>
+        <p class="promo-price" id="promoPrice"></p>
+      </div>
+      <div class="promo-content">
+        <h2 id="promoTitle"></h2>
+        <p id="promoText"></p>
+      </div>
+    </section>
+
+    <section class="highlights container reveal">
+      <article>
+        <h3>Tempero artesanal</h3>
+        <p>Marinada de 12 horas com alho, ervas e toque citrico.</p>
+      </article>
+      <article>
+        <h3>Entrega rápida</h3>
+        <p>Atendemos região central com envio em até 35 minutos.</p>
+      </article>
+      <article>
+        <h3>Porcao generosa</h3>
+        <p>Pensado para dividir, com sabor marcante do primeiro ao ultimo pedaco.</p>
+      </article>
+    </section>
+
+    <section id="cardapio" class="menu container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Cardápio</p>
+        <h2>Escolha seu favorito</h2>
+      </div>
+      <div id="menuGrid" class="menu-grid"></div>
+    </section>
+
+    <section id="depoimentos" class="testimonials container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Depoimentos</p>
+        <h2>Quem prova, volta</h2>
+      </div>
+      <div class="quotes">
+        <blockquote class="reveal">
+          "Frango suculento e porcao enorme. Melhor pedido do fim de semana."
+          <cite>- Mariana P.</cite>
+        </blockquote>
+        <blockquote class="reveal delay-1">
+          "Entrega chegou quente e o tempero e diferenciado. Virou nosso favorito."
+          <cite>- Rafael e Julia</cite>
+        </blockquote>
+        <blockquote class="reveal delay-2">
+          "Atendimento rapido e combo vale cada centavo. Recomendo demais."
+          <cite>- Carlos M.</cite>
+        </blockquote>
+      </div>
+    </section>
+
+    <section id="contato" class="contact container reveal">
+      <div>
+        <p class="eyebrow">Checkout moderno</p>
+        <h2>Agora em uma página exclusiva</h2>
+        <p>Finalize seu pedido com mais rapidez, escolha acompanhamentos e confirme seu pagamento em um fluxo dedicado.</p>
+        <ul class="checkout-benefits">
+          <li>Resumo do pedido em tempo real</li>
+          <li>Seleção de acompanhamentos e bebidas</li>
+          <li>Pagamento transparente com cálculo de troco</li>
+          <li>Impressão automática no restaurante</li>
+        </ul>
+        <a class="btn btn-primary" href="checkout.html">Ir para o checkout</a>
+      </div>
+
+      <div class="contact-card">
+        <p><strong>WhatsApp:</strong> <span id="contactPhone"></span></p>
+        <p><strong>Endereço:</strong> <span id="contactAddress"></span></p>
+        <p><strong>Instagram:</strong> <span id="contactInstagram"></span></p>
+        <a class="btn btn-dark" id="contactWhatsLink" href="#" target="_blank" rel="noopener noreferrer">Canal WhatsApp</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <p>Rei do Frango - Sabor que comanda a mesa.</p>
+      <a href="#inicio">Voltar ao topo</a>
+    </div>
+  </footer>
+
+  <div id="adminOverlay" class="admin-overlay" aria-hidden="true">
+    <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+      <div class="admin-top">
+        <h2 id="adminTitle">Area administrativa</h2>
+        <button type="button" class="admin-close" id="adminCloseBtn" aria-label="Fechar area admin">X</button>
+      </div>
+      <p class="admin-help">Atalho: pressione <strong>]</strong> para abrir/fechar esta area.</p>
+
+      <div id="adminLoginView">
+        <form id="adminLoginForm" class="admin-form admin-login">
+          <label>
+            Usuario
+            <input type="text" id="adminUserInput" autocomplete="username" required>
+          </label>
+          <label>
+            Senha
+            <input type="password" id="adminPassInput" autocomplete="current-password" required>
+          </label>
+          <button class="btn btn-primary" type="submit">Entrar</button>
+          <p id="adminLoginStatus" class="admin-status" aria-live="polite"></p>
+        </form>
+      </div>
+
+      <div id="adminEditorView" hidden>
+        <div class="admin-actions">
+          <button type="button" class="btn btn-ghost" id="addDishBtn">Adicionar prato</button>
+          <button type="button" class="btn btn-ghost" id="adminLogoutBtn">Sair da conta</button>
+        </div>
+
+        <form id="adminForm" class="admin-form">
+          <section class="admin-section">
+            <h3>Anuncio principal</h3>
+            <label>Faixa do topo<input type="text" id="heroBadgeInput"></label>
+            <label>Título<input type="text" id="heroTitleInput"></label>
+            <label>Descrição<textarea id="heroTextInput" rows="3"></textarea></label>
+          </section>
+
+          <section class="admin-section">
+            <h3>Destaque</h3>
+            <label>Etiqueta<input type="text" id="featuredKickerInput"></label>
+            <label>Título<input type="text" id="featuredTitleInput"></label>
+            <label>Descrição<textarea id="featuredTextInput" rows="3"></textarea></label>
+            <label>Preco<input type="text" id="featuredPriceInput"></label>
+          </section>
+
+          <section class="admin-section">
+            <h3>Promoção</h3>
+            <label class="inline-check"><input type="checkbox" id="promoActiveInput"> Promoção ativa</label>
+            <label>Etiqueta da promoção<input type="text" id="promoBadgeInput"></label>
+            <label>Título da promoção<input type="text" id="promoTitleInput"></label>
+            <label>Descrição da promoção<textarea id="promoTextInput" rows="2"></textarea></label>
+            <label>Preço promocional<input type="text" id="promoPriceInput"></label>
+          </section>
+
+          <section class="admin-section">
+            <h3>Contato e pedidos</h3>
+            <label>WhatsApp (visivel)<input type="text" id="contactPhoneInput"></label>
+            <label>Numero WhatsApp (somente digitos)<input type="text" id="contactNumberInput"></label>
+            <label>Endereço<input type="text" id="contactAddressInput"></label>
+            <label>Instagram<input type="text" id="contactInstagramInput"></label>
+            <label>URL do servico de impressao (opcional)<input type="text" id="printServiceUrlInput" placeholder="Deixe vazio para usar o servidor atual"></label>
+          </section>
+
+          <section class="admin-section">
+            <h3>Pratos e imagens</h3>
+            <div id="adminItemsEditor" class="admin-items"></div>
+          </section>
+
+          <section class="admin-section">
+            <h3>Credenciais da area admin</h3>
+            <label>Novo usuario<input type="text" id="newAdminUserInput"></label>
+            <label>Nova senha<input type="password" id="newAdminPassInput"></label>
+            <p class="admin-tip">Se deixar em branco, mantem usuario e senha atuais.</p>
+          </section>
+
+          <div class="admin-actions">
+            <button class="btn btn-primary" type="submit">Salvar alteracoes</button>
+            <button class="btn btn-ghost" type="button" id="resetSiteBtn">Restaurar padrao</button>
+          </div>
+          <p id="adminEditorStatus" class="admin-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
