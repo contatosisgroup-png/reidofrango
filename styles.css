@@ -1420,8 +1420,15 @@ cite {
 }
 
 .admin-shortcut-btn {
+  display: none;
   border-radius: 999px;
   padding: 0.6rem 0.95rem;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 741px) {
+  .admin-shortcut-btn {
+    display: inline-flex;
+  }
 }
 
 .nav-cart-icon {
