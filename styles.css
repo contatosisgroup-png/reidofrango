@@ -1302,6 +1302,10 @@ cite {
     display: inline-flex;
   }
 
+  .admin-shortcut-btn {
+    display: none;
+  }
+
   .nav-wrap {
     min-height: 70px;
   }
