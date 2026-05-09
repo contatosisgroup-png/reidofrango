@@ -12,14 +12,14 @@ const DEFAULT_ADMIN_CREDS = {
 
 const DEFAULT_SITE_DATA = {
   hero: {
-    badge: "Aberto todos os dias - 11h as 23h",
+    badge: "Aberto todos os dias - 11h às 23h",
     title: "O frango mais famoso do bairro chegou no ponto certo.",
-    text: "Casquinha crocante por fora, carne macia por dentro e tempero de casa. No Rei do Frango, cada pedido sai farto, quente e inesquecivel."
+    text: "Casquinha crocante por fora, carne macia por dentro e tempero de casa. No Rei do Frango, cada pedido sai farto, quente e inesquecível."
   },
   featured: {
     kicker: "Destaque da Casa",
     title: "Frango Rei Supremo",
-    text: "Frango inteiro assado + farofa da casa + batata rustica + molho especial.",
+    text: "Frango inteiro assado + farofa da casa + batata rústica + molho especial.",
     price: "R$ 69,90"
   },
   promo: {
@@ -47,28 +47,28 @@ const DEFAULT_SITE_DATA = {
     {
       id: "frango-crocante-supreme",
       title: "Frango Crocante Supreme",
-      description: "Tiras empanadas extra crocantes com maionese da casa e limao.",
+      description: "Tiras empanadas extra crocantes com maionese da casa e limão.",
       price: "R$ 42,90",
       image: "https://images.pexels.com/photos/7172851/pexels-photo-7172851.jpeg?auto=compress&cs=tinysrgb&w=1200"
     },
     {
       id: "balde-rei-galera",
       title: "Balde Rei da Galera",
-      description: "24 pedacos crocantes + 2 molhos + fritas para compartilhar.",
+      description: "24 pedaços crocantes + 2 molhos + fritas para compartilhar.",
       price: "R$ 89,90",
       image: "https://images.pexels.com/photos/16892378/pexels-photo-16892378.jpeg?auto=compress&cs=tinysrgb&w=1200"
     },
     {
       id: "sanduiche-coroacao",
-      title: "Sanduiche Coroacao",
-      description: "Pao brioche, file de frango grelhado, queijo, salada e molho picante.",
+      title: "Sanduíche Coroação",
+      description: "Pão brioche, filé de frango grelhado, queijo, salada e molho picante.",
       price: "R$ 29,90",
       image: "https://images.pexels.com/photos/14662606/pexels-photo-14662606.jpeg?auto=compress&cs=tinysrgb&w=1200"
     },
     {
       id: "prato-executivo-rei",
       title: "Prato Executivo do Rei",
-      description: "Meio frango assado, arroz, feijao, farofa e salada fresca.",
+      description: "Meio frango assado, arroz, feijão, farofa e salada fresca.",
       price: "R$ 37,90",
       image: "https://images.pexels.com/photos/27497768/pexels-photo-27497768.jpeg?auto=compress&cs=tinysrgb&w=1200"
     },
@@ -169,6 +169,7 @@ const promoTextEl = document.getElementById("promoText");
 const promoPriceEl = document.getElementById("promoPrice");
 
 const menuGridEl = document.getElementById("menuGrid");
+const menuFiltersEl = document.getElementById("menuFilters");
 const orderFormEl = document.getElementById("orderForm");
 const orderItemEl = document.getElementById("orderItem");
 const orderPaymentEl = document.getElementById("orderPayment");
@@ -183,6 +184,8 @@ const customerPhoneEl = document.getElementById("customerPhone");
 const customerAddressEl = document.getElementById("customerAddress");
 const customerNoteEl = document.getElementById("customerNote");
 const hasInlineOrderForm = Boolean(orderFormEl && orderItemEl && orderPaymentEl);
+const RUNTIME_CONFIG_FILE = "runtime-config.json";
+const LOCAL_PRINT_BASE_URL = "http://localhost:3000";
 const contactPhoneEl = document.getElementById("contactPhone");
 const contactAddressEl = document.getElementById("contactAddress");
 const contactInstagramEl = document.getElementById("contactInstagram");
@@ -190,6 +193,7 @@ const contactWhatsLinkEl = document.getElementById("contactWhatsLink");
 
 const adminOverlayEl = document.getElementById("adminOverlay");
 const adminCloseBtn = document.getElementById("adminCloseBtn");
+const openAdminBtnEl = document.getElementById("openAdminBtn");
 const adminLoginViewEl = document.getElementById("adminLoginView");
 const adminEditorViewEl = document.getElementById("adminEditorView");
 const adminLoginFormEl = document.getElementById("adminLoginForm");
@@ -238,6 +242,7 @@ const revealObserver = new IntersectionObserver(
 );
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
+let runtimeConfigPromise = null;
 
 function safeParse(jsonValue, fallback) {
   if (!jsonValue) return fallback;
@@ -260,7 +265,7 @@ function normalizeItem(rawItem, fallbackItem, index) {
   const fallback = fallbackItem || {
     id: `item-${index + 1}`,
     title: `Prato ${index + 1}`,
-    description: "Descricao do prato.",
+    description: "Descrição do prato.",
     price: "R$ 0,00",
     image: "https://images.pexels.com/photos/1027810/pexels-photo-1027810.jpeg?auto=compress&cs=tinysrgb&w=1200"
   };
@@ -272,6 +277,23 @@ function normalizeItem(rawItem, fallbackItem, index) {
     price: textValue(rawItem?.price, fallback.price),
     image: textValue(rawItem?.image, fallback.image)
   };
+}
+
+function normalizeCategory(items, fallbackItems) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return fallbackItems.map((item, index) => normalizeItem(item, fallbackItems[index], index));
+  }
+  return items.map((item, index) => normalizeItem(item, fallbackItems[index], index));
+}
+
+function itemCategory(item) {
+  const raw = textValue(item?.category, "").toLowerCase().trim();
+  if (raw === "bebidas" || raw === "sobremesas" || raw === "pratos") return raw;
+  return "pratos";
+}
+
+function getAllStoreItems(data) {
+  return [...(data.menuItems || []), ...(data.drinks || []), ...(data.desserts || [])];
 }
 
 function normalizeSiteData(rawData) {
@@ -299,11 +321,18 @@ function normalizeSiteData(rawData) {
   base.contact.instagram = textValue(rawData.contact?.instagram, base.contact.instagram);
   base.contact.printServiceUrl = textValue(rawData.contact?.printServiceUrl, base.contact.printServiceUrl);
 
-  if (Array.isArray(rawData.menuItems) && rawData.menuItems.length > 0) {
-    base.menuItems = rawData.menuItems.map((item, index) =>
-      normalizeItem(item, DEFAULT_SITE_DATA.menuItems[index], index)
-    );
-  }
+  base.menuItems = normalizeCategory(rawData.menuItems, DEFAULT_SITE_DATA.menuItems).map((item) => ({
+    ...item,
+    category: "pratos"
+  }));
+  base.drinks = normalizeCategory(rawData.drinks, DEFAULT_SITE_DATA.drinks).map((item) => ({
+    ...item,
+    category: "bebidas"
+  }));
+  base.desserts = normalizeCategory(rawData.desserts, DEFAULT_SITE_DATA.desserts).map((item) => ({
+    ...item,
+    category: "sobremesas"
+  }));
 
   return base;
 }
@@ -353,7 +382,7 @@ function makePrintPayload(customer, item) {
   const modifiers = [];
 
   if (customer.note) {
-    modifiers.push(`Referencia: ${customer.note}`);
+    modifiers.push(`Referência: ${customer.note}`);
   }
   if (customer.phone) {
     modifiers.push(`Telefone: ${customer.phone}`);
@@ -391,25 +420,86 @@ async function parseJsonSafe(response) {
   }
 }
 
-function resolvePrintUrl() {
-  const configuredBase = textValue(siteData.contact.printServiceUrl, "").trim().replace(/\/+$/, "");
-  if (configuredBase) {
-    return `${configuredBase}/print`;
-  }
-
-  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
-    return `${window.location.origin}/print`;
-  }
-
-  return "http://localhost:3000/print";
+function isLocalHostname(hostname) {
+  const normalized = String(hostname || "").toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]" || normalized === "::1";
 }
 
-function resolveFallbackPrintUrl(primaryUrl) {
-  if (!(window.location.protocol === "http:" || window.location.protocol === "https:")) {
-    return "http://localhost:3000/print";
+function normalizePrintBaseUrl(value) {
+  const raw = textValue(value, "").trim();
+  if (!raw) return "";
+  if (!/^https?:\/\//i.test(raw)) return "";
+
+  let normalized = raw.replace(/\/+$/, "");
+  if (normalized.toLowerCase().endsWith("/print")) {
+    normalized = normalized.slice(0, -"/print".length);
   }
-  const originFallback = `${window.location.origin}/print`;
-  return originFallback === primaryUrl ? "" : originFallback;
+  return normalized;
+}
+
+function resolveRuntimeConfigUrl() {
+  if (typeof window === "undefined" || !window.location) return RUNTIME_CONFIG_FILE;
+  return new URL(RUNTIME_CONFIG_FILE, window.location.href).toString();
+}
+
+async function fetchRuntimeConfig() {
+  if (!(window.location.protocol === "http:" || window.location.protocol === "https:")) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(resolveRuntimeConfigUrl(), { cache: "no-store" });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const printServiceUrl = normalizePrintBaseUrl(data?.printServiceUrl || data?.print_url || "");
+    if (!printServiceUrl) return null;
+    return { printServiceUrl };
+  } catch {
+    return null;
+  }
+}
+
+function getRuntimeConfig() {
+  if (!runtimeConfigPromise) {
+    runtimeConfigPromise = fetchRuntimeConfig().catch(() => null);
+  }
+  return runtimeConfigPromise;
+}
+
+function buildPrintUrlCandidates(runtimeConfig) {
+  const urls = [];
+  const shouldPreferLocalhost = isLocalHostname(window.location.hostname);
+
+  const addPrintUrl = (baseOrPrintUrl) => {
+    const normalizedBase = normalizePrintBaseUrl(baseOrPrintUrl);
+    if (!normalizedBase) return;
+    const printUrl = `${normalizedBase}/print`;
+    if (!urls.includes(printUrl)) {
+      urls.push(printUrl);
+    }
+  };
+
+  if (shouldPreferLocalhost) {
+    addPrintUrl(LOCAL_PRINT_BASE_URL);
+  }
+
+  addPrintUrl(runtimeConfig?.printServiceUrl);
+  addPrintUrl(siteData?.contact?.printServiceUrl);
+
+  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+    addPrintUrl(window.location.origin);
+  }
+
+  if (!shouldPreferLocalhost) {
+    addPrintUrl(LOCAL_PRINT_BASE_URL);
+  }
+
+  return urls;
+}
+
+function isConnectionError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("failed to fetch") || message.includes("network") || message.includes("timeout") || message.includes("abort");
 }
 
 function printTicketWithBrowser(orderCode, selectedItem, customer) {
@@ -476,6 +566,33 @@ async function submitPrintRequest(printUrl, printPayload) {
   return payload;
 }
 
+async function submitPrintRequestWithFallback(printPayload) {
+  const runtimeConfig = await getRuntimeConfig();
+  const candidates = buildPrintUrlCandidates(runtimeConfig);
+  const attemptedUrls = [];
+  let lastError = null;
+
+  for (const printUrl of candidates) {
+    attemptedUrls.push(printUrl);
+    try {
+      const payload = await submitPrintRequest(printUrl, printPayload);
+      return { payload, printUrl };
+    } catch (error) {
+      lastError = error;
+      if (!isConnectionError(error)) break;
+    }
+  }
+
+  if (lastError && typeof lastError === "object") {
+    lastError.attemptedUrls = attemptedUrls;
+    throw lastError;
+  }
+
+  const fallbackError = new Error("Falha ao enviar pedido para impressão.");
+  fallbackError.attemptedUrls = attemptedUrls;
+  throw fallbackError;
+}
+
 function observeRevealElements(scope = document) {
   scope.querySelectorAll(".reveal").forEach((element) => {
     if (!element.classList.contains("show")) {
@@ -487,6 +604,7 @@ function observeRevealElements(scope = document) {
 let siteData = loadSiteData();
 let adminCredentials = loadAdminCredentials();
 let adminAuthenticated = sessionStorage.getItem(STORAGE_KEYS.adminSession) === "1";
+let activeMenuFilter = "todos";
 
 function renderHero() {
   heroBadgeEl.textContent = siteData.hero.badge;
@@ -514,9 +632,19 @@ function renderContact() {
   contactWhatsLinkEl.href = buildWhatsAppUrl(siteData.contact.whatsappDigits);
 }
 
+function getDishBadge(item, index) {
+  const category = itemCategory(item);
+  if (index === 0) return "Mais vendido";
+  if (category === "bebidas") return "Gelado";
+  if (category === "sobremesas") return "Doce final";
+  if (index % 3 === 0) return "Promo";
+  return "Novo";
+}
+
 function buildDishCard(item, index) {
   const article = document.createElement("article");
   article.className = "dish reveal";
+  article.dataset.category = itemCategory(item);
   if (index % 3 === 1) article.classList.add("delay-1");
   if (index % 3 === 2) article.classList.add("delay-2");
 
@@ -528,6 +656,11 @@ function buildDishCard(item, index) {
 
   const body = document.createElement("div");
   body.className = "dish-body";
+
+  const badge = document.createElement("span");
+  badge.className = "dish-badge";
+  badge.textContent = getDishBadge(item, index);
+  body.appendChild(badge);
 
   const title = document.createElement("h3");
   title.textContent = item.title;
@@ -557,8 +690,19 @@ function buildDishCard(item, index) {
 }
 
 function renderMenu() {
+  const allItems = getAllStoreItems(siteData);
+  const visibleItems =
+    activeMenuFilter === "todos"
+      ? allItems
+      : allItems.filter((item) => itemCategory(item) === activeMenuFilter);
+
   menuGridEl.innerHTML = "";
-  siteData.menuItems.forEach((item, index) => {
+  if (visibleItems.length === 0) {
+    menuGridEl.innerHTML = '<p class="menu-empty">Nenhum item encontrado nesta categoria.</p>';
+    return;
+  }
+
+  visibleItems.forEach((item, index) => {
     const card = buildDishCard(item, index);
     menuGridEl.appendChild(card);
   });
@@ -570,7 +714,7 @@ function fillOrderSelect() {
   const selectedValue = orderItemEl.value;
   orderItemEl.innerHTML = "";
 
-  siteData.menuItems.forEach((item, index) => {
+  getAllStoreItems(siteData).forEach((item, index) => {
     const option = document.createElement("option");
     option.value = item.id;
     option.textContent = `${item.title} - ${item.price}`;
@@ -583,10 +727,19 @@ function fillOrderSelect() {
   });
 }
 
+function syncMenuFilterButtons() {
+  if (!menuFiltersEl) return;
+  menuFiltersEl.querySelectorAll(".menu-filter").forEach((button) => {
+    const targetFilter = textValue(button.getAttribute("data-filter"), "todos");
+    button.classList.toggle("active", targetFilter === activeMenuFilter);
+  });
+}
+
 function renderSite() {
   renderHero();
   renderPromotion();
   renderContact();
+  syncMenuFilterButtons();
   renderMenu();
   fillOrderSelect();
 }
@@ -612,7 +765,7 @@ function loadCustomerData() {
 }
 
 function setOrderItem(itemId) {
-  const exists = siteData.menuItems.some((item) => item.id === itemId);
+  const exists = getAllStoreItems(siteData).some((item) => item.id === itemId);
   if (!exists) return;
   window.location.href = `checkout.html?item=${encodeURIComponent(itemId)}`;
 }
@@ -653,8 +806,8 @@ function populateAdminItemEditor() {
 
     const fields = [
       { label: "ID interno", key: "id" },
-      { label: "Titulo", key: "title" },
-      { label: "Descricao", key: "description", multiline: true },
+      { label: "Título", key: "title" },
+      { label: "Descrição", key: "description", multiline: true },
       { label: "Preco", key: "price" },
       { label: "URL da imagem", key: "image" }
     ];
@@ -758,7 +911,7 @@ function collectAdminItemsFromForm() {
         {
           id: id || `item-${Date.now()}-${index}`,
           title: title || `Prato ${index + 1}`,
-          description: description || "Descricao do prato.",
+          description: description || "Descrição do prato.",
           price: price || "R$ 0,00",
           image: image || DEFAULT_SITE_DATA.menuItems[0].image
         },
@@ -797,6 +950,20 @@ function setupMenuBehavior() {
     if (!itemId) return;
     setOrderItem(itemId);
   });
+
+  if (menuFiltersEl) {
+    menuFiltersEl.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest(".menu-filter");
+      if (!button) return;
+
+      const nextFilter = textValue(button.getAttribute("data-filter"), "todos");
+      activeMenuFilter = nextFilter;
+      syncMenuFilterButtons();
+      renderMenu();
+    });
+  }
 
   if (featuredChooseBtn) {
     featuredChooseBtn.addEventListener("click", () => {
@@ -838,23 +1005,11 @@ function setupOrderForm() {
 
     const selectedItem = siteData.menuItems.find((item) => item.id === orderItemEl.value) || siteData.menuItems[0];
     const printPayload = makePrintPayload(customer, selectedItem);
-    const printUrl = resolvePrintUrl();
-    const fallbackPrintUrl = resolveFallbackPrintUrl(printUrl);
 
-    orderStatusEl.textContent = "Enviando pedido para impressao...";
+    orderStatusEl.textContent = "Enviando pedido para impressão...";
 
     try {
-      let payload;
-      try {
-        payload = await submitPrintRequest(printUrl, printPayload);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "";
-        if (fallbackPrintUrl && message.toLowerCase().includes("failed to fetch")) {
-          payload = await submitPrintRequest(fallbackPrintUrl, printPayload);
-        } else {
-          throw error;
-        }
-      }
+      const { payload } = await submitPrintRequestWithFallback(printPayload);
 
       const etaMinutes = 25 + Math.floor(Math.random() * 20);
       const etaClock = new Date(Date.now() + etaMinutes * 60000).toLocaleTimeString("pt-BR", {
@@ -865,43 +1020,59 @@ function setupOrderForm() {
 
       receiptCodeEl.textContent = orderCode;
       receiptItemEl.textContent = `${selectedItem.title} (${selectedItem.price})`;
-      receiptPaymentEl.textContent = customer.payment || "Nao informado";
+      receiptPaymentEl.textContent = customer.payment || "Não informado";
       receiptEtaEl.textContent = `${etaMinutes} min (aprox. ${etaClock})`;
       orderReceiptEl.hidden = false;
-      orderStatusEl.textContent = "Pedido enviado para impressao com sucesso.";
+      orderStatusEl.textContent = "Pedido enviado para impressão com sucesso.";
     } catch (error) {
       const fallbackOrderCode = createOrderCode();
       const printed = printTicketWithBrowser(fallbackOrderCode, selectedItem, customer);
       receiptCodeEl.textContent = fallbackOrderCode;
       receiptItemEl.textContent = `${selectedItem.title} (${selectedItem.price})`;
-      receiptPaymentEl.textContent = customer.payment || "Nao informado";
-      receiptEtaEl.textContent = "Pedido local (impressao pelo navegador)";
+      receiptPaymentEl.textContent = customer.payment || "Não informado";
+      receiptEtaEl.textContent = "Pedido local (impressão pelo navegador)";
       orderReceiptEl.hidden = false;
 
-      const message = error instanceof Error ? error.message : "Falha inesperada de impressao";
-      if (message.toLowerCase().includes("failed to fetch")) {
+      const message = error instanceof Error ? error.message : "Falha inesperada de impressão";
+      if (isConnectionError(error)) {
+        const attempted = Array.isArray(error?.attemptedUrls) ? error.attemptedUrls.join(" | ") : "";
+        const suffix = attempted ? ` Endpoints testados: ${attempted}` : "";
         orderStatusEl.textContent = printed
-          ? "Servico de impressao offline. Ticket aberto na impressao do navegador."
-          : "Servico de impressao offline e popup bloqueado. Permita popups para imprimir.";
+          ? `Serviço de impressão offline. Ticket aberto na impressão do navegador.${suffix}`
+          : `Serviço de impressão offline e popup bloqueado. Permita popups para imprimir.${suffix}`;
       } else {
         orderStatusEl.textContent = printed
-          ? `Impressao local do navegador acionada. Motivo do servico: ${message}`
-          : `Falha no servico e popup bloqueado: ${message}`;
+          ? `Impressão local do navegador acionada. Motivo do serviço: ${message}`
+          : `Falha no serviço e popup bloqueado: ${message}`;
       }
     }
   });
 }
 
 function setupAdminEvents() {
+  if (!adminOverlayEl || !adminCloseBtn || !adminLoginFormEl || !adminFormEl) return;
+
   document.addEventListener("keydown", (event) => {
     const targetTag = event.target && "tagName" in event.target ? String(event.target.tagName).toLowerCase() : "";
-    if (["input", "textarea", "select"].includes(targetTag)) return;
+    const isTypingField = ["input", "textarea", "select"].includes(targetTag);
 
-    if (event.key === "]" || event.code === "BracketRight") {
+    if ((event.key === "Escape" || event.code === "Escape") && adminOverlayEl.classList.contains("open")) {
+      event.preventDefault();
+      closeAdmin();
+      return;
+    }
+
+    if (isTypingField) return;
+
+    if (event.key === "]" || event.code === "BracketRight" || event.key === "F2" || (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "a")) {
       event.preventDefault();
       toggleAdmin();
     }
   });
+
+  if (openAdminBtnEl) {
+    openAdminBtnEl.addEventListener("click", openAdmin);
+  }
 
   adminCloseBtn.addEventListener("click", closeAdmin);
   adminOverlayEl.addEventListener("click", (event) => {
@@ -926,7 +1097,7 @@ function setupAdminEvents() {
       return;
     }
 
-    setAdminLoginStatus("Usuario ou senha invalidos.", true);
+    setAdminLoginStatus("Usuário ou senha inválidos.", true);
   });
 
   addDishBtnEl.addEventListener("click", () => {
@@ -994,7 +1165,7 @@ function setupAdminEvents() {
     updateAdminCredentialsIfNeeded();
     saveSiteData(siteData);
     renderSite();
-    setAdminStatus("Alteracoes salvas e publicadas no site.");
+    setAdminStatus("Alterações salvas e publicadas no site.");
   });
 
   resetSiteBtnEl.addEventListener("click", () => {
@@ -1002,7 +1173,7 @@ function setupAdminEvents() {
     saveSiteData(siteData);
     renderSite();
     populateAdminForm();
-    setAdminStatus("Site restaurado para o padrao.");
+    setAdminStatus("Site restaurado para o padrão.");
   });
 
   adminLogoutBtnEl.addEventListener("click", () => {
@@ -1012,11 +1183,12 @@ function setupAdminEvents() {
     adminLoginViewEl.hidden = false;
     adminLoginFormEl.reset();
     setAdminStatus("");
-    setAdminLoginStatus("Sessao encerrada.");
+    setAdminLoginStatus("Sessão encerrada.");
   });
 }
 
 function bootstrap() {
+  void getRuntimeConfig();
   setupHeaderMenu();
   setupMenuBehavior();
   if (hasInlineOrderForm) setupOrderForm();

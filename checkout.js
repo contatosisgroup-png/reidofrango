@@ -1,13 +1,14 @@
-﻿const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   siteData: "rei_do_frango_site_data_v1",
-  customer: "rei_do_frango_customer_v1"
+  customer: "rei_do_frango_customer_v1",
+  checkoutState: "rei_do_frango_checkout_state_v1"
 };
 
 const DEFAULT_SITE_DATA = {
   hero: {
-    badge: "Aberto todos os dias - 11h às 23h",
+    badge: "Aberto todos os dias - 11h as 23h",
     title: "O frango mais famoso do bairro chegou no ponto certo.",
-    text: "Casquinha crocante por fora, carne macia por dentro e tempero de casa. No Rei do Frango, cada pedido sai farto, quente e inesquecível."
+    text: "Casquinha crocante por fora, carne macia por dentro e tempero de casa. No Rei do Frango, cada pedido sai farto, quente e inesquecivel."
   },
   promo: {
     active: true,
@@ -36,14 +37,14 @@ const DEFAULT_SITE_DATA = {
     {
       id: "balde-rei-galera",
       title: "Balde Rei da Galera",
-      description: "24 pedaços crocantes + 2 molhos + fritas para compartilhar.",
+      description: "24 pedacos crocantes + 2 molhos + fritas para compartilhar.",
       price: "R$ 89,90",
       image: "https://images.pexels.com/photos/16892378/pexels-photo-16892378.jpeg?auto=compress&cs=tinysrgb&w=1200",
       category: "pratos"
     },
     {
       id: "sanduiche-coroacao",
-      title: "Sanduíche Coroação",
+      title: "Sanduiche Coroacao",
       description: "Pão brioche, filé de frango grelhado, queijo, salada e molho picante.",
       price: "R$ 29,90",
       image: "https://images.pexels.com/photos/14662606/pexels-photo-14662606.jpeg?auto=compress&cs=tinysrgb&w=1200",
@@ -52,7 +53,7 @@ const DEFAULT_SITE_DATA = {
     {
       id: "prato-executivo-rei",
       title: "Prato Executivo do Rei",
-      description: "Meio frango assado, arroz, feijão, farofa e salada fresca.",
+      description: "Meio frango assado, arroz, feijao, farofa e salada fresca.",
       price: "R$ 37,90",
       image: "https://images.pexels.com/photos/27497768/pexels-photo-27497768.jpeg?auto=compress&cs=tinysrgb&w=1200",
       category: "pratos"
@@ -152,9 +153,27 @@ const ADDONS = [
   { id: "pao-alho", title: "Pão de Alho", price: 6.9, description: "Pão francês com manteiga de alho." }
 ];
 
+const DELIVERY_ZONES = {
+  centro: { label: "Centro", fee: 6, minEta: 25, maxEta: 35 },
+  bairro: { label: "Bairros próximos", fee: 9, minEta: 30, maxEta: 45 },
+  distante: { label: "Área distante", fee: 14, minEta: 40, maxEta: 60 }
+};
+
+const COUPONS = {
+  REI10: { type: "percent", value: 0.1, minSubtotal: 0, maxDiscount: 25, label: "10% de desconto" },
+  REI15: { type: "percent", value: 0.15, minSubtotal: 90, maxDiscount: 35, label: "15% de desconto" },
+  FRETEGRATIS: { type: "free_shipping", value: 0, minSubtotal: 0, maxDiscount: 0, label: "Frete grátis" }
+};
+
+const FREE_SHIPPING_GOAL = 80;
+const RUNTIME_CONFIG_FILE = "runtime-config.json";
+const LOCAL_PRINT_BASE_URL = "http://localhost:3000";
+
 const productsCatalogEl = document.getElementById("productsCatalog");
+const categoryJumpEl = document.getElementById("categoryJump");
 const selectedItemsListEl = document.getElementById("selectedItemsList");
 const addonsGridEl = document.getElementById("addonsGrid");
+const upsellGridEl = document.getElementById("upsellGrid");
 const checkoutFormEl = document.getElementById("checkoutForm");
 const paymentMethodEl = document.getElementById("checkoutPaymentMethod");
 const amountPaidEl = document.getElementById("checkoutAmountPaid");
@@ -167,7 +186,11 @@ const pixPhoneNumberEl = document.getElementById("pixPhoneNumber");
 const checkoutChangeEl = document.getElementById("checkoutChange");
 const summarySubtotalEl = document.getElementById("summarySubtotal");
 const summaryExtrasEl = document.getElementById("summaryExtras");
+const summaryDeliveryEl = document.getElementById("summaryDelivery");
+const summaryDiscountEl = document.getElementById("summaryDiscount");
 const summaryTotalEl = document.getElementById("summaryTotal");
+const shippingProgressBarEl = document.getElementById("shippingProgressBar");
+const shippingProgressTextEl = document.getElementById("shippingProgressText");
 const checkoutStatusEl = document.getElementById("checkoutStatus");
 const resultSectionEl = document.getElementById("checkoutResult");
 const resultMessageEl = document.getElementById("resultMessage");
@@ -177,14 +200,42 @@ const resultPaymentEl = document.getElementById("resultPayment");
 const checkoutNameEl = document.getElementById("checkoutName");
 const checkoutPhoneEl = document.getElementById("checkoutPhone");
 const checkoutAddressEl = document.getElementById("checkoutAddress");
+const checkoutZipEl = document.getElementById("checkoutZip");
+const checkoutDeliveryZoneEl = document.getElementById("checkoutDeliveryZone");
+const deliveryEtaNoteEl = document.getElementById("deliveryEtaNote");
 const checkoutNoteEl = document.getElementById("checkoutNote");
+const checkoutCouponInputEl = document.getElementById("checkoutCouponInput");
+const applyCouponBtnEl = document.getElementById("applyCouponBtn");
+const couponStatusEl = document.getElementById("couponStatus");
 const menuToggleEl = document.querySelector(".menu-toggle");
 const mainNavEl = document.querySelector(".main-nav");
 
+const openCartBtnEl = document.getElementById("openCartBtn");
+const closeCartBtnEl = document.getElementById("closeCartBtn");
+const cartDrawerBackdropEl = document.getElementById("cartDrawerBackdrop");
+const cartDrawerListEl = document.getElementById("cartDrawerList");
+const cartDrawerCountEl = document.getElementById("cartDrawerCount");
+const cartDrawerSubtotalEl = document.getElementById("cartDrawerSubtotal");
+const cartGoPaymentBtnEl = document.getElementById("cartGoPaymentBtn");
+const topCartCountEl = document.getElementById("topCartCount");
+const mobileCartBarEl = document.getElementById("mobileCartBar");
+const mobileCartBtnEl = document.getElementById("mobileCartBtn");
+const mobileCartCountEl = document.getElementById("mobileCartCount");
+const mobileCartTotalEl = document.getElementById("mobileCartTotal");
+const checkoutPaymentCardEl = document.getElementById("checkoutPaymentCard");
+
+const statusReceivedEl = document.getElementById("statusReceived");
+const statusPreparingEl = document.getElementById("statusPreparing");
+const statusOnRouteEl = document.getElementById("statusOnRoute");
+const statusDeliveredEl = document.getElementById("statusDelivered");
+
 let selectedItems = {};
 let selectedAddons = [];
+let appliedCouponCode = "";
 let checkoutSubmitting = false;
 let activeSiteData = null;
+let runtimeConfigPromise = null;
+let timelineTimeouts = [];
 
 function safeParse(value, fallback) {
   if (!value) return fallback;
@@ -193,6 +244,10 @@ function safeParse(value, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function sanitizeText(value, maxLength = 120) {
@@ -213,8 +268,10 @@ function parseBRL(value) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
+function itemCategory(item) {
+  const category = sanitizeText(item?.category || "", 20).toLowerCase();
+  if (category === "pratos" || category === "bebidas" || category === "sobremesas") return category;
+  return "pratos";
 }
 
 function normalizeItem(rawItem, fallbackItem, index, category) {
@@ -277,221 +334,77 @@ function getAllProducts(siteData) {
   return [...(siteData.menuItems || []), ...(siteData.drinks || []), ...(siteData.desserts || [])];
 }
 
-function buildProductCard(item) {
-  return `
-    <div class="product-card" data-id="${item.id}">
-      <div class="product-card-image">
-        <img src="${item.image}" alt="${item.title}" loading="lazy">
-      </div>
-      <div class="product-card-content">
-        <h4>${item.title}</h4>
-        <p>${item.description}</p>
-        <div class="product-card-footer">
-          <p class="product-price">${item.price}</p>
-          <div class="quantity-controls" aria-label="Quantidade de ${item.title}">
-            <button class="quantity-btn" type="button" onclick="changeQuantity('${item.id}', -1)">-</button>
-            <span class="quantity-display" id="qty-${item.id}">0</span>
-            <button class="quantity-btn" type="button" onclick="changeQuantity('${item.id}', 1)">+</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+function isLocalHostname(hostname) {
+  const normalized = String(hostname || "").toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "[::1]" || normalized === "::1";
 }
 
-function buildProductCategory(title, items) {
-  const cards = items.map(buildProductCard).join("");
-  return `
-    <div class="product-category">
-      <h3>${title}</h3>
-      <div class="product-grid">
-        ${cards}
-      </div>
-    </div>
-  `;
+function normalizePrintBaseUrl(value) {
+  const raw = sanitizeText(value || "", 240);
+  if (!raw) return "";
+  if (!/^https?:\/\//i.test(raw)) return "";
+
+  let normalized = raw.replace(/\/+$/, "");
+  if (normalized.toLowerCase().endsWith("/print")) {
+    normalized = normalized.slice(0, -"/print".length);
+  }
+  return normalized;
 }
 
-function renderProductsCatalog(siteData) {
-  const categories = [
-    { title: "Pratos Principais", items: siteData.menuItems || [] },
-    { title: "Bebidas", items: siteData.drinks || [] },
-    { title: "Sobremesas", items: siteData.desserts || [] }
-  ];
-
-  const html = categories
-    .filter((category) => Array.isArray(category.items) && category.items.length > 0)
-    .map((category) => buildProductCategory(category.title, category.items))
-    .join("");
-
-  productsCatalogEl.innerHTML = html;
+function resolveRuntimeConfigUrl() {
+  if (typeof window === "undefined" || !window.location) return RUNTIME_CONFIG_FILE;
+  return new URL(RUNTIME_CONFIG_FILE, window.location.href).toString();
 }
 
-function changeQuantity(itemId, delta) {
-  const currentQty = selectedItems[itemId] || 0;
-  const nextQty = Math.max(0, currentQty + delta);
-
-  if (nextQty === 0) {
-    delete selectedItems[itemId];
-  } else {
-    selectedItems[itemId] = nextQty;
+async function fetchRuntimeConfig() {
+  if (!(window.location.protocol === "http:" || window.location.protocol === "https:")) {
+    return null;
   }
 
-  const qtyEl = document.getElementById(`qty-${itemId}`);
-  if (qtyEl) qtyEl.textContent = String(nextQty);
-
-  renderSelectedItems();
-  updateSummary();
-}
-
-function renderSelectedItems() {
-  const allItems = getAllProducts(activeSiteData);
-
-  const selectedList = Object.entries(selectedItems)
-    .map(([id, quantity]) => {
-      const item = allItems.find((candidate) => candidate.id === id);
-      if (!item) return null;
-      return { ...item, quantity };
-    })
-    .filter(Boolean);
-
-  if (selectedList.length === 0) {
-    selectedItemsListEl.innerHTML = '<p class="empty-state">Nenhum item selecionado ainda.</p>';
-    return;
-  }
-
-  const html = selectedList
-    .map(
-      (item) => `
-      <div class="selected-item">
-        <div class="selected-item-info">
-          <h4>${item.title} x${item.quantity}</h4>
-          <p>${item.description}</p>
-        </div>
-        <div class="selected-item-price">${formatBRL(parseBRL(item.price) * item.quantity)}</div>
-      </div>
-    `
-    )
-    .join("");
-
-  selectedItemsListEl.innerHTML = html;
-}
-
-function renderAddons(selectedIds) {
-  addonsGridEl.innerHTML = "";
-
-  ADDONS.forEach((addon) => {
-    const checked = selectedIds.includes(addon.id);
-    const wrapper = document.createElement("label");
-    wrapper.className = "addon-item";
-    wrapper.innerHTML = `
-      <input type="checkbox" value="${addon.id}" ${checked ? "checked" : ""}>
-      <div>
-        <strong>${addon.title}</strong>
-        <p>${addon.description}</p>
-      </div>
-      <span>${formatBRL(addon.price)}</span>
-    `;
-    addonsGridEl.appendChild(wrapper);
-  });
-}
-
-function calculateTotals() {
-  const allItems = getAllProducts(activeSiteData);
-
-  let subtotal = 0;
-  Object.entries(selectedItems).forEach(([id, quantity]) => {
-    const item = allItems.find((candidate) => candidate.id === id);
-    if (!item) return;
-    subtotal += parseBRL(item.price) * quantity;
-  });
-
-  let extras = 0;
-  selectedAddons.forEach((addonId) => {
-    const addon = ADDONS.find((candidate) => candidate.id === addonId);
-    if (addon) extras += addon.price;
-  });
-
-  const total = subtotal + extras;
-  const paidValue = parseBRL(amountPaidEl.value);
-  const paymentMethod = paymentMethodEl.value;
-  const amountPaid = paymentMethod === "Dinheiro" ? paidValue : total;
-  const changeDue = Math.max(0, amountPaid - total);
-  const paymentReference = sanitizeText(paymentReferenceEl.value, 60);
-
-  const paymentStatus =
-    paymentMethod === "Dinheiro"
-      ? paidValue >= total
-        ? "confirmado"
-        : "aguardando pagamento"
-      : paymentReference
-        ? "confirmado"
-        : "aguardando pagamento";
-
-  return {
-    subtotal,
-    extras,
-    total,
-    paymentMethod,
-    paidValue,
-    amountPaid,
-    changeDue,
-    paymentReference,
-    paymentStatus
-  };
-}
-
-function updateSummary() {
-  const totals = calculateTotals();
-  summarySubtotalEl.textContent = formatBRL(totals.subtotal);
-  summaryExtrasEl.textContent = formatBRL(totals.extras);
-  summaryTotalEl.textContent = formatBRL(totals.total);
-  checkoutChangeEl.textContent = formatBRL(totals.changeDue);
-  return totals;
-}
-
-function toggleCashSection(method) {
-  if (method === "Dinheiro") {
-    cashSectionEl.hidden = false;
-    paymentReferenceSectionEl.hidden = true;
-    pixSectionEl.hidden = true;
-    paymentReferenceEl.required = false;
-    paymentReferenceEl.value = "";
-    return;
-  }
-
-  cashSectionEl.hidden = true;
-  amountPaidEl.value = "";
-  checkoutChangeEl.textContent = "R$ 0,00";
-  paymentReferenceSectionEl.hidden = false;
-  paymentReferenceEl.required = true;
-
-  if (method === "Pix") {
-    pixSectionEl.hidden = false;
-    paymentReferenceEl.placeholder = "Ex: PIX12345 ou comprovante";
-    if (!paymentReferenceEl.value) {
-      paymentReferenceEl.value = `PIX-${Date.now().toString().slice(-5)}`;
-    }
-  } else {
-    pixSectionEl.hidden = true;
-    paymentReferenceEl.placeholder = "Ex: número de autorização";
+  try {
+    const response = await fetch(resolveRuntimeConfigUrl(), { cache: "no-store" });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const printServiceUrl = normalizePrintBaseUrl(data?.printServiceUrl || data?.print_url || "");
+    if (!printServiceUrl) return null;
+    return { printServiceUrl };
+  } catch {
+    return null;
   }
 }
 
-function getPrintUrls(siteData) {
+function getRuntimeConfig() {
+  if (!runtimeConfigPromise) {
+    runtimeConfigPromise = fetchRuntimeConfig().catch(() => null);
+  }
+  return runtimeConfigPromise;
+}
+
+function getPrintUrls(siteData, runtimeConfig) {
   const urls = [];
+  const shouldPreferLocalhost = isLocalHostname(window.location.hostname);
 
   const addPrintUrl = (baseOrPrintUrl) => {
-    const cleaned = String(baseOrPrintUrl || "").trim().replace(/\/+$/, "");
-    if (!cleaned) return;
-    const printUrl = cleaned.endsWith("/print") ? cleaned : `${cleaned}/print`;
+    const normalizedBase = normalizePrintBaseUrl(baseOrPrintUrl);
+    if (!normalizedBase) return;
+    const printUrl = `${normalizedBase}/print`;
     if (!urls.includes(printUrl)) urls.push(printUrl);
   };
 
+  if (shouldPreferLocalhost) {
+    addPrintUrl(LOCAL_PRINT_BASE_URL);
+  }
+
+  addPrintUrl(runtimeConfig?.printServiceUrl);
   addPrintUrl(siteData?.contact?.printServiceUrl);
+
   if (window.location.protocol.startsWith("http")) {
     addPrintUrl(window.location.origin);
   }
-  addPrintUrl("http://localhost:3000");
+
+  if (!shouldPreferLocalhost) {
+    addPrintUrl(LOCAL_PRINT_BASE_URL);
+  }
 
   return urls;
 }
@@ -518,7 +431,6 @@ async function submitPrint(printUrl, payload) {
       const message = body?.error || body?.details || body?.message || `Erro HTTP ${response.status}`;
       throw new Error(message);
     }
-
     return body;
   } finally {
     clearTimeout(timeout);
@@ -526,10 +438,13 @@ async function submitPrint(printUrl, payload) {
 }
 
 async function submitPrintWithFallback(siteData, payload) {
-  const printUrls = getPrintUrls(siteData);
+  const runtimeConfig = await getRuntimeConfig();
+  const printUrls = getPrintUrls(siteData, runtimeConfig);
   let lastError = null;
+  const attemptedUrls = [];
 
   for (const printUrl of printUrls) {
+    attemptedUrls.push(printUrl);
     try {
       const response = await submitPrint(printUrl, payload);
       return { response, printUrl };
@@ -539,13 +454,543 @@ async function submitPrintWithFallback(siteData, payload) {
     }
   }
 
-  throw lastError || new Error("Falha ao enviar pedido para impressão.");
+  if (lastError && typeof lastError === "object") {
+    lastError.attemptedUrls = attemptedUrls;
+    throw lastError;
+  }
+
+  const fallbackError = new Error("Falha ao enviar pedido para impressão.");
+  fallbackError.attemptedUrls = attemptedUrls;
+  throw fallbackError;
 }
 
 function createOrderCode() {
   const stamp = Date.now().toString().slice(-6);
   const random = Math.floor(Math.random() * 90 + 10);
   return `RF-${stamp}${random}`;
+}
+
+function getSelectedItemCount() {
+  return Object.values(selectedItems).reduce((sum, quantity) => sum + quantity, 0);
+}
+
+function pruneSelectedItems() {
+  const validIds = new Set(getAllProducts(activeSiteData).map((item) => item.id));
+  selectedItems = Object.fromEntries(
+    Object.entries(selectedItems).filter(([id, quantity]) => validIds.has(id) && quantity > 0)
+  );
+}
+
+function getSelectedList() {
+  const allItems = getAllProducts(activeSiteData);
+  return Object.entries(selectedItems)
+    .map(([id, quantity]) => {
+      const item = allItems.find((candidate) => candidate.id === id);
+      if (!item) return null;
+      return { ...item, quantity };
+    })
+    .filter(Boolean);
+}
+
+function getCardBadge(item, index) {
+  const category = itemCategory(item);
+  if (index === 0) return "Mais pedido";
+  if (category === "bebidas") return "Gelado";
+  if (category === "sobremesas") return "Novo";
+  return "Promo";
+}
+
+function buildProductCard(item, index) {
+  return `
+    <div class="product-card" data-id="${item.id}">
+      <div class="product-card-image">
+        <img src="${item.image}" alt="${item.title}" loading="lazy">
+      </div>
+      <div class="product-card-content">
+        <span class="product-tag">${getCardBadge(item, index)}</span>
+        <h4>${item.title}</h4>
+        <p>${item.description}</p>
+      </div>
+      <div class="product-card-footer">
+        <p class="product-price">${item.price}</p>
+        <div class="quantity-controls" aria-label="Quantidade de ${item.title}">
+          <button class="quantity-btn" type="button" onclick="changeQuantity('${item.id}', -1)">-</button>
+          <span class="quantity-display" id="qty-${item.id}">0</span>
+          <button class="quantity-btn" type="button" onclick="changeQuantity('${item.id}', 1)">+</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildProductCategory(categoryKey, title, items) {
+  const cards = items.map((item, index) => buildProductCard(item, index)).join("");
+  return `
+    <div class="product-category" id="category-${categoryKey}" data-category-key="${categoryKey}">
+      <h3>${title}</h3>
+      <div class="product-grid">
+        ${cards}
+      </div>
+    </div>
+  `;
+}
+
+function getCatalogCategories(siteData) {
+  return [
+    { key: "pratos", title: "Refeicoes", items: siteData.menuItems || [] },
+    { key: "bebidas", title: "Bebidas", items: siteData.drinks || [] },
+    { key: "sobremesas", title: "Doces", items: siteData.desserts || [] }
+  ];
+}
+
+function syncCategoryJumpButtons(categories) {
+  if (!categoryJumpEl) return;
+
+  const availableKeys = new Set(
+    categories
+      .filter((category) => Array.isArray(category.items) && category.items.length > 0)
+      .map((category) => category.key)
+  );
+
+  const buttons = Array.from(categoryJumpEl.querySelectorAll(".category-jump-btn"));
+  let firstVisibleButton = null;
+
+  buttons.forEach((button) => {
+    const key = sanitizeText(button.dataset.categoryTarget, 24).toLowerCase();
+    const available = availableKeys.has(key);
+    button.hidden = !available;
+    button.disabled = !available;
+    button.classList.remove("active");
+
+    if (available && !firstVisibleButton) {
+      firstVisibleButton = button;
+    }
+  });
+
+  if (firstVisibleButton) {
+    firstVisibleButton.classList.add("active");
+  }
+}
+
+function renderProductsCatalog(siteData) {
+  const categories = getCatalogCategories(siteData);
+
+  const html = categories
+    .filter((category) => Array.isArray(category.items) && category.items.length > 0)
+    .map((category) => buildProductCategory(category.key, category.title, category.items))
+    .join("");
+
+  productsCatalogEl.innerHTML = html;
+  syncCategoryJumpButtons(categories);
+}
+
+function syncQuantityDisplays() {
+  document.querySelectorAll(".quantity-display").forEach((element) => {
+    element.textContent = "0";
+  });
+
+  Object.entries(selectedItems).forEach(([id, quantity]) => {
+    const quantityEl = document.getElementById(`qty-${id}`);
+    if (quantityEl) quantityEl.textContent = String(quantity);
+  });
+}
+
+function renderSelectedItems() {
+  const selectedList = getSelectedList();
+  if (selectedList.length === 0) {
+    const emptyHtml = '<p class="empty-state">Nenhum item selecionado ainda.</p>';
+    selectedItemsListEl.innerHTML = emptyHtml;
+    cartDrawerListEl.innerHTML = emptyHtml;
+    return;
+  }
+
+  const inlineHtml = selectedList
+    .map(
+      (item) => `
+        <div class="selected-item">
+          <div class="selected-item-info">
+            <h4>${item.title}</h4>
+            <p>${item.description}</p>
+          </div>
+          <div class="selected-item-actions">
+            <div class="mini-qty">
+              <button type="button" onclick="changeQuantity('${item.id}', -1)">-</button>
+              <span>${item.quantity}</span>
+              <button type="button" onclick="changeQuantity('${item.id}', 1)">+</button>
+            </div>
+            <div class="selected-item-price">${formatBRL(parseBRL(item.price) * item.quantity)}</div>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+  selectedItemsListEl.innerHTML = inlineHtml;
+
+  const drawerHtml = selectedList
+    .map(
+      (item) => `
+        <div class="drawer-item">
+          <div>
+            <strong>${item.title}</strong>
+            <p>${item.quantity} x ${item.price}</p>
+          </div>
+          <div class="drawer-item-actions">
+            <div class="mini-qty">
+              <button type="button" onclick="changeQuantity('${item.id}', -1)" aria-label="Remover unidade">-</button>
+              <span>${item.quantity}</span>
+              <button type="button" onclick="changeQuantity('${item.id}', 1)" aria-label="Adicionar unidade">+</button>
+            </div>
+            <strong>${formatBRL(parseBRL(item.price) * item.quantity)}</strong>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+  cartDrawerListEl.innerHTML = drawerHtml;
+}
+
+function renderAddons(selectedIds) {
+  addonsGridEl.innerHTML = "";
+
+  ADDONS.forEach((addon) => {
+    const checked = selectedIds.includes(addon.id);
+    const wrapper = document.createElement("label");
+    wrapper.className = "addon-item";
+    wrapper.innerHTML = `
+      <input type="checkbox" value="${addon.id}" ${checked ? "checked" : ""}>
+      <div>
+        <strong>${addon.title}</strong>
+        <p>${addon.description}</p>
+      </div>
+      <span>${formatBRL(addon.price)}</span>
+    `;
+    addonsGridEl.appendChild(wrapper);
+  });
+}
+
+function renderUpsell() {
+  const allProducts = getAllProducts(activeSiteData);
+  const suggestions = allProducts.filter((item) => !selectedItems[item.id]).slice(0, 4);
+
+  if (suggestions.length === 0) {
+    upsellGridEl.innerHTML = '<p class="small-note">Seu carrinho ja tem varias opcoes. Perfeito.</p>';
+    return;
+  }
+
+  const html = suggestions
+    .map(
+      (item) => `
+        <article class="upsell-card">
+          <img src="${item.image}" alt="${item.title}" loading="lazy">
+          <div>
+            <h4>${item.title}</h4>
+            <p>${item.price}</p>
+            <button type="button" class="btn btn-secondary" onclick="addUpsellItem('${item.id}')">Adicionar</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  upsellGridEl.innerHTML = html;
+}
+
+function getCouponDefinition(code) {
+  if (!code) return null;
+  return COUPONS[code] || null;
+}
+
+function calculateCouponDiscount(code, subtotal, extras, delivery) {
+  const coupon = getCouponDefinition(code);
+  if (!coupon) return 0;
+  if (subtotal < (coupon.minSubtotal || 0)) return 0;
+
+  const base = subtotal + extras + delivery;
+  if (coupon.type === "free_shipping") {
+    return delivery;
+  }
+
+  if (coupon.type === "percent") {
+    const rawDiscount = subtotal * coupon.value;
+    const cappedDiscount = coupon.maxDiscount ? Math.min(rawDiscount, coupon.maxDiscount) : rawDiscount;
+    return Math.min(base, cappedDiscount);
+  }
+
+  return 0;
+}
+
+function calculateTotals() {
+  const allItems = getAllProducts(activeSiteData);
+  const zoneKey = checkoutDeliveryZoneEl.value in DELIVERY_ZONES ? checkoutDeliveryZoneEl.value : "centro";
+  const zone = DELIVERY_ZONES[zoneKey];
+
+  let subtotal = 0;
+  Object.entries(selectedItems).forEach(([id, quantity]) => {
+    const item = allItems.find((candidate) => candidate.id === id);
+    if (!item) return;
+    subtotal += parseBRL(item.price) * quantity;
+  });
+
+  let extras = 0;
+  selectedAddons.forEach((addonId) => {
+    const addon = ADDONS.find((candidate) => candidate.id === addonId);
+    if (addon) extras += addon.price;
+  });
+
+  const deliveryBase = zone.fee;
+  const freeShippingAuto = subtotal >= FREE_SHIPPING_GOAL ? deliveryBase : 0;
+  const deliveryCharge = Math.max(0, deliveryBase - freeShippingAuto);
+  const couponDiscount = calculateCouponDiscount(appliedCouponCode, subtotal, extras, deliveryCharge);
+  const discount = freeShippingAuto + couponDiscount;
+
+  const totalBeforeDiscount = subtotal + extras + deliveryBase;
+  const total = Math.max(0, totalBeforeDiscount - discount);
+
+  const paidValue = parseBRL(amountPaidEl.value);
+  const paymentMethod = paymentMethodEl.value;
+  const amountPaid = paymentMethod === "Dinheiro" ? paidValue : total;
+  const changeDue = Math.max(0, amountPaid - total);
+  const paymentReference = sanitizeText(paymentReferenceEl.value, 60);
+  const paymentStatus =
+    paymentMethod === "Dinheiro"
+      ? paidValue >= total
+        ? "confirmado"
+        : "aguardando pagamento"
+      : "confirmado";
+
+  return {
+    zoneKey,
+    zone,
+    subtotal,
+    extras,
+    deliveryBase,
+    freeShippingAuto,
+    deliveryCharge,
+    couponDiscount,
+    discount,
+    total,
+    paymentMethod,
+    amountPaid,
+    changeDue,
+    paymentReference,
+    paymentStatus
+  };
+}
+
+function updateDeliveryEtaNote(zone) {
+  deliveryEtaNoteEl.textContent = `Entrega estimada: ${zone.minEta} a ${zone.maxEta} min`;
+}
+
+function updateShippingProgress(subtotal) {
+  const ratio = Math.min(1, subtotal / FREE_SHIPPING_GOAL);
+  const percentage = Math.round(ratio * 100);
+  shippingProgressBarEl.style.width = `${percentage}%`;
+
+  if (subtotal >= FREE_SHIPPING_GOAL) {
+    shippingProgressTextEl.textContent = "Frete grátis liberado neste pedido.";
+    return;
+  }
+
+  const missing = FREE_SHIPPING_GOAL - subtotal;
+  shippingProgressTextEl.textContent = `Faltam ${formatBRL(missing)} para frete grátis`;
+}
+
+function updateCouponStatus(totals) {
+  if (!appliedCouponCode) {
+    couponStatusEl.textContent = "";
+    couponStatusEl.classList.remove("error");
+    return;
+  }
+
+  const coupon = getCouponDefinition(appliedCouponCode);
+  if (!coupon) {
+    couponStatusEl.textContent = "Cupom inválido.";
+    couponStatusEl.classList.add("error");
+    return;
+  }
+
+  if (totals.subtotal < (coupon.minSubtotal || 0)) {
+    couponStatusEl.textContent = `Cupom ${appliedCouponCode} exige subtotal mínimo de ${formatBRL(coupon.minSubtotal)}.`;
+    couponStatusEl.classList.add("error");
+    return;
+  }
+
+  const discountText = formatBRL(totals.couponDiscount + totals.freeShippingAuto);
+  couponStatusEl.textContent = `Cupom aplicado: ${appliedCouponCode} (${coupon.label}). Desconto atual: ${discountText}.`;
+  couponStatusEl.classList.remove("error");
+}
+
+function updateCartIndicators(totals) {
+  const itemCount = getSelectedItemCount();
+  topCartCountEl.textContent = String(itemCount);
+  cartDrawerCountEl.textContent = String(itemCount);
+  cartDrawerSubtotalEl.textContent = formatBRL(totals.subtotal + totals.extras);
+
+  if (itemCount > 0) {
+    mobileCartBarEl.hidden = false;
+    mobileCartCountEl.textContent = String(itemCount);
+    mobileCartTotalEl.textContent = formatBRL(totals.total);
+  } else {
+    mobileCartBarEl.hidden = true;
+  }
+}
+
+function saveCheckoutState() {
+  const payload = {
+    selectedItems,
+    selectedAddons,
+    appliedCouponCode,
+    deliveryZone: sanitizeText(checkoutDeliveryZoneEl.value, 20),
+    zip: sanitizeText(checkoutZipEl.value, 12)
+  };
+  localStorage.setItem(STORAGE_KEYS.checkoutState, JSON.stringify(payload));
+}
+
+function loadCheckoutState() {
+  const saved = safeParse(localStorage.getItem(STORAGE_KEYS.checkoutState), null);
+  if (!saved || typeof saved !== "object") return;
+
+  if (saved.selectedItems && typeof saved.selectedItems === "object") {
+    selectedItems = Object.fromEntries(
+      Object.entries(saved.selectedItems)
+        .map(([id, quantity]) => [sanitizeText(id, 70), Number(quantity) || 0])
+        .filter(([, quantity]) => quantity > 0)
+    );
+  }
+
+  if (Array.isArray(saved.selectedAddons)) {
+    const validAddonIds = new Set(ADDONS.map((addon) => addon.id));
+    selectedAddons = saved.selectedAddons
+      .map((id) => sanitizeText(id, 40))
+      .filter((id) => validAddonIds.has(id));
+  }
+
+  const nextCouponCode = sanitizeText(saved.appliedCouponCode || "", 20).toUpperCase();
+  if (nextCouponCode) {
+    appliedCouponCode = nextCouponCode;
+    checkoutCouponInputEl.value = nextCouponCode;
+  }
+
+  if (saved.deliveryZone && saved.deliveryZone in DELIVERY_ZONES) {
+    checkoutDeliveryZoneEl.value = saved.deliveryZone;
+  }
+
+  if (saved.zip) {
+    checkoutZipEl.value = sanitizeText(saved.zip, 12);
+  }
+}
+
+function clearCheckoutState() {
+  localStorage.removeItem(STORAGE_KEYS.checkoutState);
+}
+
+function refreshCheckoutUI() {
+  syncQuantityDisplays();
+  renderSelectedItems();
+  renderUpsell();
+
+  const totals = calculateTotals();
+
+  summarySubtotalEl.textContent = formatBRL(totals.subtotal);
+  summaryExtrasEl.textContent = formatBRL(totals.extras);
+  summaryDeliveryEl.textContent = formatBRL(totals.deliveryCharge);
+  summaryDiscountEl.textContent = `- ${formatBRL(totals.discount)}`;
+  summaryTotalEl.textContent = formatBRL(totals.total);
+  checkoutChangeEl.textContent = formatBRL(totals.changeDue);
+
+  updateDeliveryEtaNote(totals.zone);
+  updateShippingProgress(totals.subtotal);
+  updateCouponStatus(totals);
+  updateCartIndicators(totals);
+  saveCheckoutState();
+
+  return totals;
+}
+
+function setStatus(message) {
+  checkoutStatusEl.textContent = message;
+}
+
+function setCheckoutSubmitting(submitting) {
+  checkoutSubmitting = submitting;
+  const submitButton = checkoutFormEl.querySelector('button[type="submit"]');
+  if (!submitButton) return;
+  submitButton.disabled = submitting;
+  submitButton.textContent = submitting ? "Enviando..." : "Finalizar compra";
+}
+
+function toggleCashSection(method) {
+  if (method === "Dinheiro") {
+    cashSectionEl.hidden = false;
+    paymentReferenceSectionEl.hidden = true;
+    pixSectionEl.hidden = true;
+    paymentReferenceEl.required = false;
+    paymentReferenceEl.value = "";
+    return;
+  }
+
+  cashSectionEl.hidden = true;
+  amountPaidEl.value = "";
+  checkoutChangeEl.textContent = "R$ 0,00";
+  paymentReferenceSectionEl.hidden = false;
+  paymentReferenceEl.required = false;
+
+  if (method === "Pix") {
+    pixSectionEl.hidden = false;
+    paymentReferenceEl.placeholder = "Opcional: PIX12345 ou comprovante";
+  } else {
+    pixSectionEl.hidden = true;
+    paymentReferenceEl.placeholder = "Opcional: número de autorização";
+  }
+}
+
+function openCartDrawer(event) {
+  if (event) {
+    event.preventDefault();
+  }
+  if (!cartDrawerBackdropEl) return;
+
+  cartDrawerBackdropEl.hidden = false;
+  cartDrawerBackdropEl.classList.add("is-open");
+  cartDrawerBackdropEl.setAttribute("aria-hidden", "false");
+  document.body.classList.add("no-scroll");
+}
+
+function closeCartDrawer(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (!cartDrawerBackdropEl) return;
+
+  cartDrawerBackdropEl.classList.remove("is-open");
+  cartDrawerBackdropEl.hidden = true;
+  cartDrawerBackdropEl.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("no-scroll");
+}
+
+function applyCouponFromInput() {
+  const code = sanitizeText(checkoutCouponInputEl.value, 20).toUpperCase();
+  if (!code) {
+    appliedCouponCode = "";
+    couponStatusEl.textContent = "";
+    couponStatusEl.classList.remove("error");
+    refreshCheckoutUI();
+    return;
+  }
+
+  const coupon = getCouponDefinition(code);
+  if (!coupon) {
+    appliedCouponCode = "";
+    couponStatusEl.textContent = "Cupom inválido.";
+    couponStatusEl.classList.add("error");
+    refreshCheckoutUI();
+    return;
+  }
+
+  appliedCouponCode = code;
+  checkoutCouponInputEl.value = code;
+  refreshCheckoutUI();
 }
 
 function loadCustomerData() {
@@ -581,41 +1026,12 @@ function populateCustomerFields(customer) {
   checkoutNoteEl.value = customer.note || "";
 }
 
-function setCheckoutSubmitting(submitting) {
-  checkoutSubmitting = submitting;
-
-  const submitButton = checkoutFormEl.querySelector('button[type="submit"]');
-  if (!submitButton) return;
-
-  submitButton.disabled = submitting;
-  submitButton.textContent = submitting ? "Enviando..." : "Finalizar compra";
-}
-
-function showResult(orderCode, eta, paymentMethod) {
-  resultCodeEl.textContent = orderCode;
-  resultEtaEl.textContent = eta;
-  resultPaymentEl.textContent = paymentMethod;
-  resultMessageEl.textContent = "O pedido foi enviado para impressão automática do restaurante. Aguarde a confirmação do preparo.";
-  resultSectionEl.hidden = false;
-  resultSectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function setStatus(message) {
-  checkoutStatusEl.textContent = message;
-}
-
 function preselectItemFromQuery(siteData) {
   const paramId = sanitizeText(new URLSearchParams(window.location.search).get("item") || "", 80);
   if (!paramId) return;
-
-  const allItems = getAllProducts(siteData);
-  const found = allItems.find((item) => item.id === paramId);
+  const found = getAllProducts(siteData).find((item) => item.id === paramId);
   if (!found) return;
-
-  selectedItems[found.id] = 1;
-
-  const qtyEl = document.getElementById(`qty-${found.id}`);
-  if (qtyEl) qtyEl.textContent = "1";
+  selectedItems[found.id] = (selectedItems[found.id] || 0) + 1;
 }
 
 function buildPrintPayload(customer, addonIds, totals) {
@@ -625,7 +1041,6 @@ function buildPrintPayload(customer, addonIds, totals) {
   Object.entries(selectedItems).forEach(([id, quantity]) => {
     const item = allItems.find((candidate) => candidate.id === id);
     if (!item) return;
-
     items.push({
       name: item.title,
       quantity,
@@ -636,7 +1051,6 @@ function buildPrintPayload(customer, addonIds, totals) {
   addonIds.forEach((addonId) => {
     const addon = ADDONS.find((candidate) => candidate.id === addonId);
     if (!addon) return;
-
     items.push({
       name: addon.title,
       quantity: 1,
@@ -648,15 +1062,62 @@ function buildPrintPayload(customer, addonIds, totals) {
     customerName: customer.name,
     customerPhone: customer.phone,
     customerAddress: customer.address,
+    deliveryZip: sanitizeText(checkoutZipEl.value, 12),
+    deliveryZone: totals.zone.label,
     paymentMethod: customer.paymentMethod,
     paymentStatus: totals.paymentStatus,
     amountPaid: totals.amountPaid,
     changeDue: totals.changeDue,
     paymentReference: totals.paymentReference || `PED${Date.now().toString().slice(-6)}`,
     note: customer.note,
+    couponCode: appliedCouponCode || null,
+    subtotal: totals.subtotal,
+    extras: totals.extras,
+    deliveryFee: totals.deliveryCharge,
+    discount: totals.discount,
     items,
     total: totals.total
   };
+}
+
+function clearTimeline() {
+  timelineTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+  timelineTimeouts = [];
+}
+
+function setTimelineStep(stepIndex) {
+  const steps = [statusReceivedEl, statusPreparingEl, statusOnRouteEl, statusDeliveredEl];
+  steps.forEach((step, index) => {
+    step.classList.remove("active", "done");
+    if (index < stepIndex) {
+      step.classList.add("done");
+      return;
+    }
+    if (index === stepIndex) {
+      step.classList.add("active");
+    }
+  });
+}
+
+function startTimeline() {
+  clearTimeline();
+  setTimelineStep(0);
+
+  timelineTimeouts.push(
+    setTimeout(() => setTimelineStep(1), 4000),
+    setTimeout(() => setTimelineStep(2), 10000),
+    setTimeout(() => setTimelineStep(3), 18000)
+  );
+}
+
+function showResult(orderCode, eta, paymentMethod) {
+  resultCodeEl.textContent = orderCode;
+  resultEtaEl.textContent = eta;
+  resultPaymentEl.textContent = paymentMethod;
+  resultMessageEl.textContent = "Pedido confirmado. Você pode acompanhar o status abaixo até a entrega.";
+  resultSectionEl.hidden = false;
+  startTimeline();
+  resultSectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function setupCopyPixAction() {
@@ -700,36 +1161,116 @@ function setupHeaderMenu() {
   });
 }
 
+function setupCategoryJump() {
+  if (!categoryJumpEl || !productsCatalogEl) return;
+
+  categoryJumpEl.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    const button = target.closest(".category-jump-btn");
+    if (!button || button.disabled) return;
+
+    const categoryKey = sanitizeText(button.dataset.categoryTarget, 24).toLowerCase();
+    const section = productsCatalogEl.querySelector(`[data-category-key="${categoryKey}"]`);
+    if (!(section instanceof HTMLElement)) {
+      setStatus("Categoria indisponível no momento.");
+      return;
+    }
+
+    categoryJumpEl.querySelectorAll(".category-jump-btn").forEach((candidate) => {
+      candidate.classList.toggle("active", candidate === button);
+    });
+
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function setupCartDrawer() {
+  if (!openCartBtnEl || !closeCartBtnEl || !mobileCartBtnEl || !cartGoPaymentBtnEl || !checkoutPaymentCardEl || !cartDrawerBackdropEl) {
+    return;
+  }
+
+  openCartBtnEl.addEventListener("click", (event) => openCartDrawer(event));
+  closeCartBtnEl.addEventListener("click", (event) => closeCartDrawer(event));
+  closeCartBtnEl.addEventListener("touchend", (event) => closeCartDrawer(event));
+  mobileCartBtnEl.addEventListener("click", (event) => openCartDrawer(event));
+  cartGoPaymentBtnEl.addEventListener("click", () => {
+    closeCartDrawer();
+    checkoutPaymentCardEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  cartDrawerBackdropEl.addEventListener("click", (event) => {
+    if (event.target === cartDrawerBackdropEl) {
+      closeCartDrawer();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !cartDrawerBackdropEl.hidden) {
+      closeCartDrawer();
+    }
+  });
+}
+
 function setupCheckout() {
   setupHeaderMenu();
+  setupCartDrawer();
+  setupCategoryJump();
+  setupCopyPixAction();
+
   activeSiteData = getLocalSiteData();
+  void getRuntimeConfig();
 
   renderProductsCatalog(activeSiteData);
+  loadCheckoutState();
   preselectItemFromQuery(activeSiteData);
-  renderSelectedItems();
+  pruneSelectedItems();
   renderAddons(selectedAddons);
-  updateSummary();
+  populateCustomerFields(loadCustomerData());
+  syncQuantityDisplays();
   toggleCashSection(paymentMethodEl.value);
+  refreshCheckoutUI();
 
   addonsGridEl.addEventListener("change", () => {
     selectedAddons = Array.from(addonsGridEl.querySelectorAll("input[type=checkbox]:checked")).map((input) => input.value);
-    updateSummary();
+    refreshCheckoutUI();
     setStatus("Acompanhamentos atualizados.");
   });
 
   paymentMethodEl.addEventListener("change", () => {
     toggleCashSection(paymentMethodEl.value);
-    updateSummary();
+    refreshCheckoutUI();
     setStatus(`Método de pagamento: ${paymentMethodEl.value}`);
   });
 
   amountPaidEl.addEventListener("input", () => {
-    updateSummary();
-    setStatus("Troco recalculado.");
+    refreshCheckoutUI();
   });
 
-  setupCopyPixAction();
-  populateCustomerFields(loadCustomerData());
+  paymentReferenceEl.addEventListener("input", () => {
+    refreshCheckoutUI();
+  });
+
+  checkoutDeliveryZoneEl.addEventListener("change", () => {
+    refreshCheckoutUI();
+    setStatus("Região de entrega atualizada.");
+  });
+
+  checkoutZipEl.addEventListener("input", () => {
+    saveCheckoutState();
+  });
+
+  applyCouponBtnEl.addEventListener("click", () => {
+    applyCouponFromInput();
+  });
+
+  checkoutCouponInputEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      applyCouponFromInput();
+    }
+  });
 
   checkoutFormEl.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -753,20 +1294,14 @@ function setupCheckout() {
       return;
     }
 
-    const totals = updateSummary();
-
+    const totals = refreshCheckoutUI();
     if (totals.total <= 0) {
-      setStatus("O total do pedido está inválido. Revise os itens selecionados.");
+      setStatus("Total inválido. Revise os itens selecionados.");
       return;
     }
 
     if (customer.paymentMethod === "Dinheiro" && totals.amountPaid < totals.total) {
       setStatus("Valor em dinheiro insuficiente para confirmar o pedido.");
-      return;
-    }
-
-    if (customer.paymentMethod !== "Dinheiro" && !totals.paymentReference) {
-      setStatus("Informe a referência/comprovante do pagamento para continuar.");
       return;
     }
 
@@ -778,16 +1313,29 @@ function setupCheckout() {
 
       const { response } = await submitPrintWithFallback(activeSiteData, payload);
       const orderCode = sanitizeText(response?.orderId || createOrderCode(), 40);
-      const etaMinutes = 20 + Math.floor(Math.random() * 15);
-      const eta = `${etaMinutes} min`;
+      const etaRandom = totals.zone.minEta + Math.floor(Math.random() * (totals.zone.maxEta - totals.zone.minEta + 1));
+      const eta = `${etaRandom} min`;
 
       showResult(orderCode, eta, customer.paymentMethod);
       saveCustomerData(customer);
+
+      selectedItems = {};
+      selectedAddons = [];
+      appliedCouponCode = "";
+      checkoutCouponInputEl.value = "";
+      clearCheckoutState();
+      renderAddons(selectedAddons);
+      refreshCheckoutUI();
+      closeCartDrawer();
       setStatus("Pedido enviado com sucesso. Impressão acionada no restaurante.");
     } catch (error) {
       const message = String(error?.message || "Tente novamente.");
       if (isConnectionError(error)) {
-        setStatus("Não foi possível conectar ao serviço de impressão. Verifique se o INICIAR_IMPRESSAO.bat está em execução.");
+        const attempted = Array.isArray(error?.attemptedUrls) ? error.attemptedUrls.join(" | ") : "";
+        const suffix = attempted ? ` Endpoints testados: ${attempted}` : "";
+        setStatus(
+          `Não foi possível conectar ao serviço de impressão. Verifique se o INICIAR_IMPRESSAO.bat está em execução.${suffix}`
+        );
       } else {
         setStatus(`Falha ao enviar pedido: ${message}`);
       }
@@ -797,5 +1345,25 @@ function setupCheckout() {
   });
 }
 
+function changeQuantity(itemId, delta) {
+  const currentQty = selectedItems[itemId] || 0;
+  const nextQty = Math.max(0, currentQty + delta);
+
+  if (nextQty === 0) {
+    delete selectedItems[itemId];
+  } else {
+    selectedItems[itemId] = nextQty;
+  }
+
+  refreshCheckoutUI();
+}
+
+function addUpsellItem(itemId) {
+  selectedItems[itemId] = (selectedItems[itemId] || 0) + 1;
+  refreshCheckoutUI();
+  setStatus("Item sugerido adicionado ao carrinho.");
+}
+
 window.changeQuantity = changeQuantity;
+window.addUpsellItem = addUpsellItem;
 window.addEventListener("DOMContentLoaded", setupCheckout);

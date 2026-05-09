@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -16,7 +16,7 @@
 
   <header class="topbar">
     <div class="container nav-wrap">
-      <a class="brand" href="#inicio" aria-label="Rei do Frango - inicio">
+      <a class="brand" href="#inicio" aria-label="Rei do Frango - início">
         <img src="assets/icon.png" alt="Logo Rei do Frango">
         <span>Rei do Frango</span>
       </a>
@@ -24,14 +24,31 @@
       <nav class="main-nav" id="mainNav">
         <a href="#cardapio">Cardápio</a>
         <a href="#promocao">Promoção</a>
+        <a href="#como-funciona">Como funciona</a>
         <a href="#depoimentos">Depoimentos</a>
         <a href="#contato">Contato</a>
       </nav>
-      <a class="btn btn-primary nav-cta" href="checkout.html">Pedir Agora</a>
+      <button class="btn btn-secondary admin-shortcut-btn" type="button" id="openAdminBtn" aria-label="Abrir área administrativa">Admin</button>
+      <a class="btn btn-primary nav-cta nav-cart-icon" href="checkout.html" aria-label="Abrir checkout" title="Abrir checkout">&#128722;</a>
     </div>
   </header>
 
   <main id="inicio">
+    <section class="trust-strip container reveal" aria-label="Informações de confiança">
+      <article>
+        <strong>Entrega média</strong>
+        <span>25 a 40 min</span>
+      </article>
+      <article>
+        <strong>Loja aberta hoje</strong>
+        <span>11h até 23h</span>
+      </article>
+      <article>
+        <strong>Satisfação</strong>
+        <span>4.9/5 em pedidos</span>
+      </article>
+    </section>
+
     <section class="hero container">
       <div class="hero-text reveal">
         <p class="eyebrow" id="heroBadge"></p>
@@ -39,7 +56,7 @@
         <p id="heroText"></p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="checkout.html">Fazer pedido</a>
-          <a class="btn btn-ghost" href="#promocao">Ver Promoção</a>
+          <a class="btn btn-ghost" href="#promocao">Ver promoção</a>
         </div>
       </div>
       <div class="hero-card reveal delay-1">
@@ -68,15 +85,15 @@
     <section class="highlights container reveal">
       <article>
         <h3>Tempero artesanal</h3>
-        <p>Marinada de 12 horas com alho, ervas e toque citrico.</p>
+        <p>Marinada de 12 horas com alho, ervas e toque cítrico.</p>
       </article>
       <article>
         <h3>Entrega rápida</h3>
         <p>Atendemos região central com envio em até 35 minutos.</p>
       </article>
       <article>
-        <h3>Porcao generosa</h3>
-        <p>Pensado para dividir, com sabor marcante do primeiro ao ultimo pedaco.</p>
+        <h3>Porção generosa</h3>
+        <p>Pensado para dividir, com sabor marcante do primeiro ao último pedaço.</p>
       </article>
     </section>
 
@@ -85,7 +102,37 @@
         <p class="eyebrow">Cardápio</p>
         <h2>Escolha seu favorito</h2>
       </div>
+      <div class="menu-filters reveal" id="menuFilters">
+        <button type="button" class="menu-filter active" data-filter="todos">Todos</button>
+        <button type="button" class="menu-filter" data-filter="pratos">Pratos</button>
+        <button type="button" class="menu-filter" data-filter="bebidas">Bebidas</button>
+        <button type="button" class="menu-filter" data-filter="sobremesas">Sobremesas</button>
+      </div>
       <div id="menuGrid" class="menu-grid"></div>
+    </section>
+
+    <section id="como-funciona" class="steps container reveal">
+      <div class="section-head">
+        <p class="eyebrow">Compra fácil</p>
+        <h2>Seu pedido em 3 passos</h2>
+      </div>
+      <div class="steps-grid">
+        <article>
+          <span>1</span>
+          <h3>Escolha os itens</h3>
+          <p>Monte seu pedido com pratos, bebidas e sobremesas em poucos toques.</p>
+        </article>
+        <article>
+          <span>2</span>
+          <h3>Confirme o pagamento</h3>
+          <p>Use Pix, cartão ou dinheiro com resumo claro e cálculo de troco.</p>
+        </article>
+        <article>
+          <span>3</span>
+          <h3>Receba em casa</h3>
+          <p>Você acompanha o status e o tempo estimado até a entrega.</p>
+        </article>
+      </div>
     </section>
 
     <section id="depoimentos" class="testimonials container">
@@ -95,15 +142,15 @@
       </div>
       <div class="quotes">
         <blockquote class="reveal">
-          "Frango suculento e porcao enorme. Melhor pedido do fim de semana."
+          "Frango suculento e porção enorme. Melhor pedido do fim de semana."
           <cite>- Mariana P.</cite>
         </blockquote>
         <blockquote class="reveal delay-1">
-          "Entrega chegou quente e o tempero e diferenciado. Virou nosso favorito."
+          "Entrega chegou quente e o tempero é diferenciado. Virou nosso favorito."
           <cite>- Rafael e Julia</cite>
         </blockquote>
         <blockquote class="reveal delay-2">
-          "Atendimento rapido e combo vale cada centavo. Recomendo demais."
+          "Atendimento rápido e combo vale cada centavo. Recomendo demais."
           <cite>- Carlos M.</cite>
         </blockquote>
       </div>
@@ -137,20 +184,26 @@
       <p>Rei do Frango - Sabor que comanda a mesa.</p>
       <a href="#inicio">Voltar ao topo</a>
     </div>
+    <div class="container footer-dev-credit">
+      <img src="assets/icon rt.png" alt="Logo de Rafael Tarouquela" class="footer-dev-logo">
+      <p>Desenvolvido por Rafael Tarouquela</p>
+      <p>WhatsApp: <a href="https://wa.me/5521998891299" target="_blank" rel="noopener noreferrer">(21) 99889-1299</a></p>
+      <p>Instagram: <a href="https://instagram.com/otarouquela_" target="_blank" rel="noopener noreferrer">@otarouquela_</a></p>
+    </div>
   </footer>
 
   <div id="adminOverlay" class="admin-overlay" aria-hidden="true">
     <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
       <div class="admin-top">
-        <h2 id="adminTitle">Area administrativa</h2>
-        <button type="button" class="admin-close" id="adminCloseBtn" aria-label="Fechar area admin">X</button>
+        <h2 id="adminTitle">Área administrativa</h2>
+        <button type="button" class="admin-close" id="adminCloseBtn" aria-label="Fechar área admin">X</button>
       </div>
-      <p class="admin-help">Atalho: pressione <strong>]</strong> para abrir/fechar esta area.</p>
+      <p class="admin-help">Atalho: pressione <strong>]</strong> ou <strong>F2</strong> para abrir/fechar esta área.</p>
 
       <div id="adminLoginView">
         <form id="adminLoginForm" class="admin-form admin-login">
           <label>
-            Usuario
+            Usuário
             <input type="text" id="adminUserInput" autocomplete="username" required>
           </label>
           <label>
@@ -158,6 +211,7 @@
             <input type="password" id="adminPassInput" autocomplete="current-password" required>
           </label>
           <button class="btn btn-primary" type="submit">Entrar</button>
+          <p class="admin-tip">Acesso padrão: usuário <strong>admin</strong> e senha <strong>rei123</strong> (se não tiver sido alterado).</p>
           <p id="adminLoginStatus" class="admin-status" aria-live="polite"></p>
         </form>
       </div>
@@ -170,7 +224,7 @@
 
         <form id="adminForm" class="admin-form">
           <section class="admin-section">
-            <h3>Anuncio principal</h3>
+            <h3>Anúncio principal</h3>
             <label>Faixa do topo<input type="text" id="heroBadgeInput"></label>
             <label>Título<input type="text" id="heroTitleInput"></label>
             <label>Descrição<textarea id="heroTextInput" rows="3"></textarea></label>
@@ -181,7 +235,7 @@
             <label>Etiqueta<input type="text" id="featuredKickerInput"></label>
             <label>Título<input type="text" id="featuredTitleInput"></label>
             <label>Descrição<textarea id="featuredTextInput" rows="3"></textarea></label>
-            <label>Preco<input type="text" id="featuredPriceInput"></label>
+            <label>Preço<input type="text" id="featuredPriceInput"></label>
           </section>
 
           <section class="admin-section">
@@ -195,11 +249,11 @@
 
           <section class="admin-section">
             <h3>Contato e pedidos</h3>
-            <label>WhatsApp (visivel)<input type="text" id="contactPhoneInput"></label>
-            <label>Numero WhatsApp (somente digitos)<input type="text" id="contactNumberInput"></label>
+            <label>WhatsApp (visível)<input type="text" id="contactPhoneInput"></label>
+            <label>Número WhatsApp (somente dígitos)<input type="text" id="contactNumberInput"></label>
             <label>Endereço<input type="text" id="contactAddressInput"></label>
             <label>Instagram<input type="text" id="contactInstagramInput"></label>
-            <label>URL do servico de impressao (opcional)<input type="text" id="printServiceUrlInput" placeholder="Deixe vazio para usar o servidor atual"></label>
+            <label>URL do serviço de impressão (opcional)<input type="text" id="printServiceUrlInput" placeholder="Deixe vazio para usar o servidor atual"></label>
           </section>
 
           <section class="admin-section">
@@ -208,15 +262,15 @@
           </section>
 
           <section class="admin-section">
-            <h3>Credenciais da area admin</h3>
-            <label>Novo usuario<input type="text" id="newAdminUserInput"></label>
+            <h3>Credenciais da área admin</h3>
+            <label>Novo usuário<input type="text" id="newAdminUserInput"></label>
             <label>Nova senha<input type="password" id="newAdminPassInput"></label>
-            <p class="admin-tip">Se deixar em branco, mantem usuario e senha atuais.</p>
+            <p class="admin-tip">Se deixar em branco, mantém usuário e senha atuais.</p>
           </section>
 
           <div class="admin-actions">
-            <button class="btn btn-primary" type="submit">Salvar alteracoes</button>
-            <button class="btn btn-ghost" type="button" id="resetSiteBtn">Restaurar padrao</button>
+            <button class="btn btn-primary" type="submit">Salvar alterações</button>
+            <button class="btn btn-ghost" type="button" id="resetSiteBtn">Restaurar padrão</button>
           </div>
           <p id="adminEditorStatus" class="admin-status" aria-live="polite"></p>
         </form>
@@ -227,3 +281,4 @@
   <script src="script.js"></script>
 </body>
 </html>
+

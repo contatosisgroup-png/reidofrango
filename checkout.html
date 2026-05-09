@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -26,16 +26,36 @@
         <a href="index.html#promocao">Promoção</a>
         <a href="index.html#contato">Contato</a>
       </nav>
-      <a class="btn btn-primary nav-cta" href="index.html">Voltar ao site</a>
+      <div class="nav-actions">
+        <button class="btn btn-secondary nav-cart-btn" type="button" id="openCartBtn" aria-label="Abrir carrinho">
+          <span aria-hidden="true">&#128722;</span> <strong id="topCartCount">0</strong>
+        </button>
+        <a class="btn btn-primary nav-cta" href="index.html">Voltar ao site</a>
+      </div>
     </div>
   </header>
 
-  <main class="checkout-page">
+  <main class="checkout-page" id="checkoutTop">
+    <section class="checkout-trust container" aria-label="Informações de entrega">
+      <article>
+        <strong>Entrega hoje</strong>
+        <span>25 a 40 min</span>
+      </article>
+      <article>
+        <strong>Pagamento seguro</strong>
+        <span>Pix, cartão ou dinheiro</span>
+      </article>
+      <article>
+        <strong>Pedido monitorado</strong>
+        <span>Status em tempo real</span>
+      </article>
+    </section>
+
     <section class="checkout-hero container">
       <div>
         <p class="eyebrow">Checkout</p>
         <h1>Finalizar pedido com segurança</h1>
-        <p>Adicione acompanhamentos, escolha a forma de pagamento e confira o pedido antes da impressão.</p>
+        <p>Adicione acompanhamentos, escolha a forma de pagamento e acompanhe cada etapa até a entrega.</p>
       </div>
       <div class="checkout-promo-card">
         <img src="assets/icon.png" alt="" aria-hidden="true" class="promo-logo">
@@ -55,20 +75,33 @@
           <p class="subtext">Selecione quantos itens quiser de cada categoria.</p>
         </div>
 
+        <div class="category-jump" id="categoryJump" aria-label="Atalhos de categoria">
+          <button type="button" class="category-jump-btn active" data-category-target="pratos">Refeições</button>
+          <button type="button" class="category-jump-btn" data-category-target="bebidas">Bebidas</button>
+          <button type="button" class="category-jump-btn" data-category-target="sobremesas">Doces</button>
+        </div>
+
         <div id="productsCatalog" class="products-catalog">
           <!-- Produtos serão inseridos aqui via JavaScript -->
         </div>
       </article>
 
-      <article class="checkout-card checkout-payment-card">
+      <article class="checkout-card checkout-payment-card" id="checkoutPaymentCard">
         <div class="section-head">
-          <p class="eyebrow">Resumo do pedido</p>
+          <p class="eyebrow">Seu carrinho</p>
           <h2>Itens selecionados</h2>
+          <p class="subtext">Confira o que você está comprando antes de pagar.</p>
         </div>
 
         <div id="selectedItemsList" class="selected-items-list">
           <!-- Itens selecionados aparecerão aqui -->
         </div>
+
+        <div class="section-head">
+          <p class="eyebrow">Sugestoes</p>
+          <h2>Combine com seu pedido</h2>
+        </div>
+        <div id="upsellGrid" class="upsell-grid"></div>
 
         <div class="section-head">
           <p class="eyebrow">Acompanhamentos</p>
@@ -95,16 +128,40 @@
             <input type="text" id="checkoutAddress" autocomplete="street-address" required>
           </label>
           <label>
+            CEP (opcional)
+            <input type="text" id="checkoutZip" inputmode="numeric" placeholder="Ex: 01234-567">
+          </label>
+          <label>
+            Região de entrega
+            <select id="checkoutDeliveryZone" required>
+              <option value="centro">Centro - frete R$ 6,00</option>
+              <option value="bairro">Bairros próximos - frete R$ 9,00</option>
+              <option value="distante">Área distante - frete R$ 14,00</option>
+            </select>
+          </label>
+          <p class="small-note" id="deliveryEtaNote">Entrega estimada: 25 a 35 min</p>
+
+          <label>
             Observações para a cozinha
             <input type="text" id="checkoutNote" placeholder="Ex: sem cebola, sem pimenta">
           </label>
+
+          <div class="coupon-block">
+            <label for="checkoutCouponInput">Cupom de desconto</label>
+            <div class="coupon-row">
+              <input type="text" id="checkoutCouponInput" placeholder="Ex: REI10">
+              <button type="button" id="applyCouponBtn" class="btn btn-secondary">Aplicar</button>
+            </div>
+            <p class="small-note">Cupons de teste: REI10, REI15, FRETEGRATIS</p>
+            <p class="coupon-status" id="couponStatus" aria-live="polite"></p>
+          </div>
 
           <label>
             Método de pagamento
             <select id="checkoutPaymentMethod" required>
               <option value="Pix">Pix</option>
-              <option value="Cartão de crédito">Cartão de crédito</option>
-              <option value="Cartão de débito">Cartão de débito</option>
+              <option value="Cartao de credito">Cartão de crédito</option>
+              <option value="Cartao de debito">Cartão de débito</option>
               <option value="Dinheiro">Dinheiro</option>
             </select>
           </label>
@@ -120,10 +177,10 @@
 
           <div id="paymentReferenceSection" class="payment-details" hidden>
             <label>
-              Referência / comprovante
-              <input type="text" id="checkoutPaymentReference" placeholder="Ex: PIX12345 ou nº comprovante" required>
+              Referência / comprovante (opcional)
+              <input type="text" id="checkoutPaymentReference" placeholder="Ex: PIX12345 ou comprovante">
             </label>
-            <p class="small-note">Preencha este campo para Pix e cartão, para confirmar o pagamento.</p>
+            <p class="small-note">Para Pix e cartão, você pode informar o comprovante se quiser.</p>
           </div>
 
           <div id="pixSection" class="payment-details" hidden>
@@ -132,7 +189,7 @@
               <input type="text" id="pixPhoneNumber" class="pix-key-input" value="(21) 96564-8765" readonly>
               <button type="button" id="copyPixButton" class="btn btn-secondary pix-copy-btn">Copiar</button>
             </div>
-            <p class="small-note">Copie o número acima e cole no aplicativo do seu banco para fazer o pagamento por Pix.</p>
+            <p class="small-note">Copie o número acima e cole no app do seu banco para pagar por Pix.</p>
           </div>
 
           <div class="summary-card">
@@ -143,6 +200,20 @@
             <div class="summary-line">
               <span>Acompanhamentos</span>
               <strong id="summaryExtras">R$ 0,00</strong>
+            </div>
+            <div class="summary-line">
+              <span>Frete</span>
+              <strong id="summaryDelivery">R$ 0,00</strong>
+            </div>
+            <div class="summary-line">
+              <span>Desconto</span>
+              <strong id="summaryDiscount">- R$ 0,00</strong>
+            </div>
+            <div class="frete-progress">
+              <div class="frete-progress-track">
+                <span id="shippingProgressBar"></span>
+              </div>
+              <p id="shippingProgressText">Faltam R$ 80,00 para frete grátis</p>
             </div>
             <div class="summary-line total-line">
               <span>Total</span>
@@ -173,17 +244,52 @@
           <p id="resultPayment"></p>
         </div>
       </div>
+      <div class="status-timeline" id="statusTimeline" aria-live="polite">
+        <div class="timeline-step active" id="statusReceived">Pedido recebido</div>
+        <div class="timeline-step" id="statusPreparing">Em preparo</div>
+        <div class="timeline-step" id="statusOnRoute">Saiu para entrega</div>
+        <div class="timeline-step" id="statusDelivered">Entregue</div>
+      </div>
       <a class="btn btn-ghost" href="index.html">Voltar para o cardápio</a>
     </section>
   </main>
+
+  <div class="mobile-cart-bar" id="mobileCartBar" hidden>
+    <button type="button" id="mobileCartBtn" class="mobile-cart-btn" aria-label="Abrir carrinho">
+      <span><strong id="mobileCartCount">0</strong> itens no carrinho</span>
+      <strong id="mobileCartTotal">R$ 0,00</strong>
+    </button>
+  </div>
+
+  <div class="cart-drawer-backdrop" id="cartDrawerBackdrop" hidden aria-hidden="true">
+    <aside class="cart-drawer" id="cartDrawer" aria-labelledby="cartDrawerTitle" aria-modal="true" role="dialog">
+      <div class="cart-drawer-head">
+        <h2 id="cartDrawerTitle">Seu carrinho</h2>
+        <button type="button" id="closeCartBtn" class="cart-close-btn" aria-label="Fechar carrinho">&times;</button>
+      </div>
+      <div id="cartDrawerList" class="cart-drawer-list"></div>
+      <div class="cart-drawer-summary">
+        <p><span>Total de itens</span><strong id="cartDrawerCount">0</strong></p>
+        <p><span>Total parcial</span><strong id="cartDrawerSubtotal">R$ 0,00</strong></p>
+      </div>
+      <button type="button" id="cartGoPaymentBtn" class="btn btn-primary btn-block">Ir para pagamento</button>
+    </aside>
+  </div>
 
   <footer class="site-footer">
     <div class="container footer-wrap">
       <p>Rei do Frango - Sabor que comanda a mesa.</p>
       <a href="index.html">Voltar ao topo</a>
     </div>
+    <div class="container footer-dev-credit">
+      <img src="assets/icon rt.png" alt="Logo de Rafael Tarouquela" class="footer-dev-logo">
+      <p>Desenvolvido por Rafael Tarouquela</p>
+      <p>WhatsApp: <a href="https://wa.me/5521998891299" target="_blank" rel="noopener noreferrer">(21) 99889-1299</a></p>
+      <p>Instagram: <a href="https://instagram.com/otarouquela_" target="_blank" rel="noopener noreferrer">@otarouquela_</a></p>
+    </div>
   </footer>
 
   <script src="checkout.js"></script>
 </body>
 </html>
+
