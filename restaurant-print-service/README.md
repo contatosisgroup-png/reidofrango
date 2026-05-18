@@ -46,6 +46,10 @@ Regras:
   - diagnostico completo das impressoras candidatas e alvo resolvido.
 - `POST /print`
   - recebe o pedido e dispara impressao.
+- `GET /orders?limit=80`
+  - lista os pedidos recebidos (com status de impressao).
+- `GET /orders/stream`
+  - stream em tempo real (Server-Sent Events) para acompanhar novos pedidos.
 - `POST /pix/create`
   - mock de criacao Pix.
 - `POST /pix/verify`

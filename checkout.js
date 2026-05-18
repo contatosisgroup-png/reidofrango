@@ -223,11 +223,14 @@ const mobileCartBtnEl = document.getElementById("mobileCartBtn");
 const mobileCartCountEl = document.getElementById("mobileCartCount");
 const mobileCartTotalEl = document.getElementById("mobileCartTotal");
 const checkoutPaymentCardEl = document.getElementById("checkoutPaymentCard");
+const ordersSectionEl = document.getElementById("pedidos");
 
 const statusReceivedEl = document.getElementById("statusReceived");
 const statusPreparingEl = document.getElementById("statusPreparing");
 const statusOnRouteEl = document.getElementById("statusOnRoute");
 const statusDeliveredEl = document.getElementById("statusDelivered");
+
+const ORDER_ENTRY_ALIASES = new Set(["pedidos", "pedido", "orders", "order"]);
 
 let selectedItems = {};
 let selectedAddons = [];
@@ -1034,6 +1037,30 @@ function preselectItemFromQuery(siteData) {
   selectedItems[found.id] = (selectedItems[found.id] || 0) + 1;
 }
 
+function readEntryTarget() {
+  const params = new URLSearchParams(window.location.search);
+  const rawTarget =
+    params.get("aba") ||
+    params.get("tab") ||
+    params.get("section") ||
+    String(window.location.hash || "").replace(/^#/, "");
+  return sanitizeText(rawTarget, 24).toLowerCase();
+}
+
+function focusOrdersSectionFromEntry() {
+  if (!(ordersSectionEl instanceof HTMLElement)) return;
+  const target = readEntryTarget();
+  if (!target || !ORDER_ENTRY_ALIASES.has(target)) return;
+
+  window.requestAnimationFrame(() => {
+    ordersSectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    ordersSectionEl.classList.add("checkout-target-highlight");
+    window.setTimeout(() => {
+      ordersSectionEl.classList.remove("checkout-target-highlight");
+    }, 1800);
+  });
+}
+
 function buildPrintPayload(customer, addonIds, totals) {
   const allItems = getAllProducts(activeSiteData);
   const items = [];
@@ -1231,6 +1258,7 @@ function setupCheckout() {
   syncQuantityDisplays();
   toggleCashSection(paymentMethodEl.value);
   refreshCheckoutUI();
+  focusOrdersSectionFromEntry();
 
   addonsGridEl.addEventListener("change", () => {
     selectedAddons = Array.from(addonsGridEl.querySelectorAll("input[type=checkbox]:checked")).map((input) => input.value);

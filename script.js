@@ -2,7 +2,8 @@ const STORAGE_KEYS = {
   siteData: "rei_do_frango_site_data_v1",
   customer: "rei_do_frango_customer_v1",
   adminCreds: "rei_do_frango_admin_creds_v1",
-  adminSession: "rei_do_frango_admin_session_v1"
+  adminSession: "rei_do_frango_admin_session_v1",
+  adminOrdersCache: "rei_do_frango_admin_orders_cache_v1"
 };
 
 const DEFAULT_ADMIN_CREDS = {
@@ -206,6 +207,10 @@ const addDishBtnEl = document.getElementById("addDishBtn");
 const adminLogoutBtnEl = document.getElementById("adminLogoutBtn");
 const adminItemsEditorEl = document.getElementById("adminItemsEditor");
 const resetSiteBtnEl = document.getElementById("resetSiteBtn");
+const adminOrdersRefreshBtnEl = document.getElementById("adminOrdersRefreshBtn");
+const adminOrdersStatusEl = document.getElementById("adminOrdersStatus");
+const adminOrdersListEl = document.getElementById("adminOrdersList");
+const adminPrintHealthEl = document.getElementById("adminPrintHealth");
 
 const heroBadgeInputEl = document.getElementById("heroBadgeInput");
 const heroTitleInputEl = document.getElementById("heroTitleInput");
@@ -243,6 +248,8 @@ const revealObserver = new IntersectionObserver(
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 let runtimeConfigPromise = null;
+const ADMIN_ORDERS_CACHE_LIMIT = 120;
+const ADMIN_ORDERS_POLL_MS = 12000;
 
 function safeParse(jsonValue, fallback) {
   if (!jsonValue) return fallback;
@@ -466,35 +473,38 @@ function getRuntimeConfig() {
   return runtimeConfigPromise;
 }
 
-function buildPrintUrlCandidates(runtimeConfig) {
+function buildPrintBaseUrlCandidates(runtimeConfig) {
   const urls = [];
   const shouldPreferLocalhost = isLocalHostname(window.location.hostname);
 
-  const addPrintUrl = (baseOrPrintUrl) => {
+  const addPrintBaseUrl = (baseOrPrintUrl) => {
     const normalizedBase = normalizePrintBaseUrl(baseOrPrintUrl);
     if (!normalizedBase) return;
-    const printUrl = `${normalizedBase}/print`;
-    if (!urls.includes(printUrl)) {
-      urls.push(printUrl);
+    if (!urls.includes(normalizedBase)) {
+      urls.push(normalizedBase);
     }
   };
 
   if (shouldPreferLocalhost) {
-    addPrintUrl(LOCAL_PRINT_BASE_URL);
+    addPrintBaseUrl(LOCAL_PRINT_BASE_URL);
   }
 
-  addPrintUrl(runtimeConfig?.printServiceUrl);
-  addPrintUrl(siteData?.contact?.printServiceUrl);
+  addPrintBaseUrl(runtimeConfig?.printServiceUrl);
+  addPrintBaseUrl(siteData?.contact?.printServiceUrl);
 
   if (window.location.protocol === "http:" || window.location.protocol === "https:") {
-    addPrintUrl(window.location.origin);
+    addPrintBaseUrl(window.location.origin);
   }
 
   if (!shouldPreferLocalhost) {
-    addPrintUrl(LOCAL_PRINT_BASE_URL);
+    addPrintBaseUrl(LOCAL_PRINT_BASE_URL);
   }
 
   return urls;
+}
+
+function buildPrintUrlCandidates(runtimeConfig) {
+  return buildPrintBaseUrlCandidates(runtimeConfig).map((baseUrl) => `${baseUrl}/print`);
 }
 
 function isConnectionError(error) {
@@ -605,6 +615,9 @@ let siteData = loadSiteData();
 let adminCredentials = loadAdminCredentials();
 let adminAuthenticated = sessionStorage.getItem(STORAGE_KEYS.adminSession) === "1";
 let activeMenuFilter = "todos";
+let adminOrdersPollTimer = null;
+let adminOrdersStream = null;
+let adminOrdersStreamBaseUrl = "";
 
 function renderHero() {
   heroBadgeEl.textContent = siteData.hero.badge;
@@ -780,6 +793,302 @@ function setAdminLoginStatus(message, isError = false) {
   adminLoginStatusEl.classList.toggle("error", isError);
 }
 
+function setAdminOrdersStatus(message, isError = false) {
+  if (!adminOrdersStatusEl) return;
+  adminOrdersStatusEl.textContent = message;
+  adminOrdersStatusEl.classList.toggle("error", isError);
+}
+
+function setAdminPrintHealth(message) {
+  if (!adminPrintHealthEl) return;
+  adminPrintHealthEl.textContent = message;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatCurrencyBRL(value) {
+  const amount = Number(value);
+  const safe = Number.isFinite(amount) ? amount : 0;
+  return `R$ ${safe.toFixed(2).replace(".", ",")}`;
+}
+
+function formatDateTimeBR(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function mapOrderStatus(statusValue) {
+  const normalized = textValue(statusValue, "").toLowerCase();
+
+  if (normalized.includes("falha") || normalized.includes("erro") || normalized.includes("failed")) {
+    return {
+      label: "Falha de impressão",
+      className: "status-falha"
+    };
+  }
+
+  if (normalized.includes("impresso") || normalized.includes("printed")) {
+    return {
+      label: "Impresso",
+      className: "status-impresso"
+    };
+  }
+
+  if (normalized.includes("preparo") || normalized.includes("preparing")) {
+    return {
+      label: "Em preparo",
+      className: ""
+    };
+  }
+
+  return {
+    label: "Recebido",
+    className: ""
+  };
+}
+
+function normalizeAdminOrder(rawOrder, index) {
+  const fallbackId = `pedido-${index + 1}`;
+  const totalValue = Number(rawOrder?.total);
+  const parsedTotal = Number.isFinite(totalValue) ? totalValue : parseBRLMoney(rawOrder?.total);
+  const items = Array.isArray(rawOrder?.items)
+    ? rawOrder.items
+    : Array.isArray(rawOrder?.products)
+      ? rawOrder.products
+      : [];
+
+  return {
+    id: textValue(rawOrder?.id, fallbackId) || fallbackId,
+    createdAt: textValue(rawOrder?.created_at ?? rawOrder?.createdAt, ""),
+    customerName: textValue(rawOrder?.customer_name ?? rawOrder?.customerName, "Cliente"),
+    customerPhone: textValue(rawOrder?.customer_phone ?? rawOrder?.customerPhone, ""),
+    customerAddress: textValue(rawOrder?.customer_address ?? rawOrder?.customerAddress, ""),
+    paymentMethod: textValue(rawOrder?.payment_method ?? rawOrder?.paymentMethod, "Não informado"),
+    total: parsedTotal > 0 ? parsedTotal : 0,
+    status: textValue(rawOrder?.status, "recebido"),
+    printError: textValue(rawOrder?.print_error, ""),
+    items
+  };
+}
+
+function loadAdminOrdersCache() {
+  const cached = safeParse(localStorage.getItem(STORAGE_KEYS.adminOrdersCache), []);
+  if (!Array.isArray(cached)) return [];
+  return cached.map((order, index) => normalizeAdminOrder(order, index));
+}
+
+function saveAdminOrdersCache(orders) {
+  const payload = Array.isArray(orders) ? orders.slice(0, ADMIN_ORDERS_CACHE_LIMIT) : [];
+  localStorage.setItem(STORAGE_KEYS.adminOrdersCache, JSON.stringify(payload));
+}
+
+function summarizeOrderItems(order) {
+  if (!Array.isArray(order.items) || order.items.length === 0) {
+    return "Itens não informados";
+  }
+
+  const firstItems = order.items.slice(0, 3).map((item) => {
+    const quantity = Number(item?.quantity);
+    const safeQty = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    const name = textValue(item?.name, "Item");
+    return `${safeQty}x ${name}`;
+  });
+
+  const suffix = order.items.length > 3 ? ` +${order.items.length - 3} item(ns)` : "";
+  return `${firstItems.join(" • ")}${suffix}`;
+}
+
+function renderAdminOrdersList(orders) {
+  if (!adminOrdersListEl) return;
+
+  if (!Array.isArray(orders) || orders.length === 0) {
+    adminOrdersListEl.innerHTML = '<p class="admin-tip">Nenhum pedido recebido ainda.</p>';
+    return;
+  }
+
+  adminOrdersListEl.innerHTML = orders
+    .map((order) => {
+      const status = mapOrderStatus(order.status);
+      const statusClass = status.className ? ` ${status.className}` : "";
+      const orderId = escapeHtml(order.id);
+      const customerName = escapeHtml(order.customerName);
+      const customerPhone = escapeHtml(order.customerPhone || "Sem telefone");
+      const paymentMethod = escapeHtml(order.paymentMethod);
+      const customerAddress = escapeHtml(order.customerAddress || "Sem endereço");
+      const createdAt = escapeHtml(formatDateTimeBR(order.createdAt));
+      const itemsSummary = escapeHtml(summarizeOrderItems(order));
+      const total = escapeHtml(formatCurrencyBRL(order.total));
+      const printError = order.printError
+        ? `<p class="admin-order-meta">Erro: ${escapeHtml(order.printError)}</p>`
+        : "";
+
+      return `<article class="admin-order-card">
+        <div class="admin-order-head">
+          <div>
+            <p class="admin-order-code">#${orderId}</p>
+            <p class="admin-order-meta">${createdAt}</p>
+          </div>
+          <p class="admin-order-status${statusClass}">${escapeHtml(status.label)}</p>
+        </div>
+        <p class="admin-order-meta"><strong>${customerName}</strong> • ${customerPhone}</p>
+        <p class="admin-order-meta">${paymentMethod} • ${customerAddress}</p>
+        <p class="admin-order-lines">${itemsSummary}</p>
+        <p class="admin-order-total">Total: ${total}</p>
+        ${printError}
+      </article>`;
+    })
+    .join("");
+}
+
+async function fetchOrdersFromService(baseUrl, limit = ADMIN_ORDERS_CACHE_LIMIT) {
+  const endpoint = `${baseUrl}/orders?limit=${encodeURIComponent(limit)}`;
+  const response = await fetch(endpoint, { cache: "no-store" });
+  const payload = await parseJsonSafe(response);
+
+  if (!response.ok) {
+    const details = payload?.error || payload?.details || payload?.message || `Erro HTTP ${response.status}`;
+    throw new Error(details);
+  }
+
+  const rawOrders = Array.isArray(payload?.orders) ? payload.orders : Array.isArray(payload) ? payload : [];
+  return rawOrders.map((order, index) => normalizeAdminOrder(order, index));
+}
+
+async function fetchHealthFromService(baseUrl) {
+  const response = await fetch(`${baseUrl}/health`, { cache: "no-store" });
+  const payload = await parseJsonSafe(response);
+  if (!response.ok) return null;
+  return payload;
+}
+
+async function fetchOrdersWithFallback() {
+  const runtimeConfig = await getRuntimeConfig();
+  const candidates = buildPrintBaseUrlCandidates(runtimeConfig);
+  const attemptedUrls = [];
+  let lastError = null;
+
+  for (const baseUrl of candidates) {
+    attemptedUrls.push(baseUrl);
+    try {
+      const orders = await fetchOrdersFromService(baseUrl);
+      return { orders, baseUrl, attemptedUrls };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError && typeof lastError === "object") {
+    lastError.attemptedUrls = attemptedUrls;
+    throw lastError;
+  }
+
+  const fallbackError = new Error("Falha ao carregar pedidos.");
+  fallbackError.attemptedUrls = attemptedUrls;
+  throw fallbackError;
+}
+
+function stopAdminOrdersStream() {
+  if (adminOrdersStream) {
+    adminOrdersStream.close();
+    adminOrdersStream = null;
+  }
+  adminOrdersStreamBaseUrl = "";
+}
+
+function stopAdminOrdersLiveUpdates() {
+  if (adminOrdersPollTimer) {
+    clearInterval(adminOrdersPollTimer);
+    adminOrdersPollTimer = null;
+  }
+  stopAdminOrdersStream();
+}
+
+function connectAdminOrdersStream(baseUrl) {
+  if (typeof window.EventSource === "undefined") return;
+  if (!baseUrl) return;
+  if (adminOrdersStream && adminOrdersStreamBaseUrl === baseUrl) return;
+
+  stopAdminOrdersStream();
+  const stream = new EventSource(`${baseUrl}/orders/stream`);
+
+  stream.addEventListener("update", () => {
+    if (!adminAuthenticated || !adminOverlayEl.classList.contains("open")) return;
+    void refreshAdminOrders({ silent: true, skipStreamConnect: true });
+  });
+
+  adminOrdersStream = stream;
+  adminOrdersStreamBaseUrl = baseUrl;
+}
+
+async function refreshAdminOrders(options = {}) {
+  const { silent = false, skipStreamConnect = false } = options;
+  if (!adminOrdersListEl) return;
+
+  if (!silent) {
+    setAdminOrdersStatus("Carregando pedidos...");
+  }
+
+  try {
+    const { orders, baseUrl } = await fetchOrdersWithFallback();
+    renderAdminOrdersList(orders);
+    saveAdminOrdersCache(orders);
+
+    const updatedAt = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    setAdminOrdersStatus(`${orders.length} pedido(s) atualizado(s) às ${updatedAt}.`);
+
+    const health = await fetchHealthFromService(baseUrl);
+    if (health?.printer?.resolvedTarget) {
+      const target = health.printer.resolvedTarget;
+      const targetLabel = target.printerName || target.ip || "impressora detectada";
+      setAdminPrintHealth(`Impressora online: ${targetLabel}`);
+    } else {
+      setAdminPrintHealth("Impressora sem alvo definido no serviço.");
+    }
+
+    if (!skipStreamConnect) {
+      connectAdminOrdersStream(baseUrl);
+    }
+  } catch (error) {
+    const cachedOrders = loadAdminOrdersCache();
+    renderAdminOrdersList(cachedOrders);
+
+    const attempted = Array.isArray(error?.attemptedUrls) ? error.attemptedUrls.join(" | ") : "";
+    const suffix = attempted ? ` Endpoints: ${attempted}` : "";
+    if (cachedOrders.length > 0) {
+      setAdminOrdersStatus(`Sem conexão com o serviço. Exibindo cache local.${suffix}`, true);
+    } else {
+      setAdminOrdersStatus(`Não foi possível carregar pedidos.${suffix}`, true);
+    }
+
+    setAdminPrintHealth("Serviço de impressão offline.");
+  }
+}
+
+function startAdminOrdersLiveUpdates() {
+  stopAdminOrdersLiveUpdates();
+  if (!adminAuthenticated) return;
+  void refreshAdminOrders();
+
+  adminOrdersPollTimer = setInterval(() => {
+    if (!adminAuthenticated || !adminOverlayEl.classList.contains("open")) return;
+    void refreshAdminOrders({ silent: true, skipStreamConnect: true });
+  }, ADMIN_ORDERS_POLL_MS);
+}
+
 function populateAdminItemEditor() {
   adminItemsEditorEl.innerHTML = "";
 
@@ -872,7 +1181,9 @@ function openAdmin() {
     adminEditorViewEl.hidden = false;
     populateAdminForm();
     setAdminStatus("");
+    startAdminOrdersLiveUpdates();
   } else {
+    stopAdminOrdersLiveUpdates();
     adminLoginViewEl.hidden = false;
     adminEditorViewEl.hidden = true;
     adminLoginFormEl.reset();
@@ -882,6 +1193,7 @@ function openAdmin() {
 }
 
 function closeAdmin() {
+  stopAdminOrdersLiveUpdates();
   adminOverlayEl.classList.remove("open");
   adminOverlayEl.setAttribute("aria-hidden", "true");
   document.body.classList.remove("no-scroll");
@@ -1074,6 +1386,13 @@ function setupAdminEvents() {
     openAdminBtnEl.addEventListener("click", openAdmin);
   }
 
+  if (adminOrdersRefreshBtnEl) {
+    adminOrdersRefreshBtnEl.addEventListener("click", () => {
+      if (!adminAuthenticated) return;
+      void refreshAdminOrders();
+    });
+  }
+
   adminCloseBtn.addEventListener("click", closeAdmin);
   adminOverlayEl.addEventListener("click", (event) => {
     if (event.target === adminOverlayEl) {
@@ -1094,6 +1413,7 @@ function setupAdminEvents() {
       populateAdminForm();
       setAdminLoginStatus("");
       setAdminStatus("Login efetuado.");
+      startAdminOrdersLiveUpdates();
       return;
     }
 
@@ -1177,6 +1497,7 @@ function setupAdminEvents() {
   });
 
   adminLogoutBtnEl.addEventListener("click", () => {
+    stopAdminOrdersLiveUpdates();
     adminAuthenticated = false;
     sessionStorage.removeItem(STORAGE_KEYS.adminSession);
     adminEditorViewEl.hidden = true;
@@ -1193,6 +1514,11 @@ function bootstrap() {
   setupMenuBehavior();
   if (hasInlineOrderForm) setupOrderForm();
   setupAdminEvents();
+  if (adminOrdersListEl) {
+    renderAdminOrdersList(loadAdminOrdersCache());
+    setAdminOrdersStatus("");
+    setAdminPrintHealth("");
+  }
   renderSite();
   loadCustomerData();
   observeRevealElements();

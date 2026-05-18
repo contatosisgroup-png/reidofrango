@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import { Queue, Worker } from 'bullmq';
 import path from 'path';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { buildTicket } from './escposTicket.js';
 import { sendToPrinter, sendToPrintNode, getPrinterDiagnostics } from './printService.js';
@@ -36,6 +37,10 @@ const rawDatabaseUrl = String(process.env.DATABASE_URL || '').trim();
 const hasDatabase = Boolean(rawDatabaseUrl) && !rawDatabaseUrl.includes('user:password@localhost:5432/restaurant');
 let databaseEnabled = hasDatabase;
 let databaseReady = false;
+const ORDER_HISTORY_LIMIT = Math.max(20, Number(process.env.ORDER_HISTORY_LIMIT || 300));
+const ordersStorePath = path.join(__dirname, 'orders-store.json');
+let orderHistory = [];
+const orderStreamClients = new Set();
 
 const pool = databaseEnabled ? new Pool({ connectionString: process.env.DATABASE_URL }) : null;
 
@@ -99,6 +104,142 @@ async function ensureSchema() {
     );
   `);
   databaseReady = true;
+}
+
+function normalizeOrderHistoryRecord(rawRecord, index) {
+  const fallbackId = `HIST-${Date.now()}-${index + 1}`;
+  const createdAt = sanitizeText(rawRecord?.created_at, 40) || new Date().toISOString();
+  const updatedAt = sanitizeText(rawRecord?.updated_at, 40) || createdAt;
+  const items = Array.isArray(rawRecord?.items) ? rawRecord.items : [];
+
+  return {
+    id: sanitizeText(rawRecord?.id, 60) || fallbackId,
+    customer_name: sanitizeText(rawRecord?.customer_name, 80) || 'Cliente',
+    customer_phone: sanitizeText(rawRecord?.customer_phone, 40),
+    customer_address: sanitizeText(rawRecord?.customer_address, 220),
+    payment_method: sanitizeText(rawRecord?.payment_method, 60),
+    payment_status: sanitizeText(rawRecord?.payment_status, 40) || 'pending',
+    amount_paid: parseNumber(rawRecord?.amount_paid),
+    change_due: parseNumber(rawRecord?.change_due),
+    payment_reference: sanitizeText(rawRecord?.payment_reference, 100),
+    notes: sanitizeText(rawRecord?.notes, 240),
+    table_number: sanitizeText(rawRecord?.table_number, 30) || null,
+    items,
+    total: parseNumber(rawRecord?.total),
+    status: sanitizeText(rawRecord?.status, 50) || 'recebido',
+    print_error: sanitizeText(rawRecord?.print_error, 300),
+    created_at: createdAt,
+    updated_at: updatedAt,
+    printed_at: sanitizeText(rawRecord?.printed_at, 40),
+    source: sanitizeText(rawRecord?.source, 40) || 'print-service'
+  };
+}
+
+function sortOrderHistory(records) {
+  return [...records].sort((a, b) => {
+    const aTime = new Date(a?.created_at || 0).getTime();
+    const bTime = new Date(b?.created_at || 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+function trimOrderHistory(records) {
+  return sortOrderHistory(records).slice(0, ORDER_HISTORY_LIMIT);
+}
+
+async function loadOrderHistory() {
+  try {
+    const content = await fs.readFile(ordersStorePath, 'utf8');
+    const parsed = JSON.parse(content);
+    const rawList = Array.isArray(parsed) ? parsed : [];
+    orderHistory = trimOrderHistory(rawList.map((item, index) => normalizeOrderHistoryRecord(item, index)));
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      console.warn('Nao foi possivel ler orders-store.json:', error?.message || error);
+    }
+    orderHistory = [];
+  }
+}
+
+async function persistOrderHistory() {
+  const payload = JSON.stringify(orderHistory, null, 2);
+  await fs.writeFile(ordersStorePath, `${payload}\n`, 'utf8');
+}
+
+function findOrderInHistory(orderId) {
+  const normalized = sanitizeText(orderId, 60);
+  if (!normalized) return null;
+  return orderHistory.find((order) => String(order.id) === normalized) || null;
+}
+
+function toPublicOrder(order) {
+  return {
+    id: String(order.id),
+    customer_name: order.customer_name,
+    customer_phone: order.customer_phone,
+    customer_address: order.customer_address,
+    payment_method: order.payment_method,
+    payment_status: order.payment_status,
+    amount_paid: parseNumber(order.amount_paid),
+    change_due: parseNumber(order.change_due),
+    payment_reference: order.payment_reference,
+    notes: order.notes,
+    table_number: order.table_number,
+    items: Array.isArray(order.items) ? order.items : [],
+    total: parseNumber(order.total),
+    status: order.status,
+    print_error: order.print_error || '',
+    created_at: order.created_at,
+    updated_at: order.updated_at || order.created_at,
+    printed_at: order.printed_at || ''
+  };
+}
+
+function buildOrderHistoryRecord(order, status, printError = '') {
+  const now = new Date().toISOString();
+  return normalizeOrderHistoryRecord(
+    {
+      ...order,
+      status,
+      print_error: printError,
+      updated_at: now,
+      printed_at: status === 'impresso' ? now : ''
+    },
+    0
+  );
+}
+
+async function upsertOrderHistoryRecord(record) {
+  const normalized = normalizeOrderHistoryRecord(record, 0);
+  const withoutCurrent = orderHistory.filter((item) => String(item.id) !== String(normalized.id));
+  orderHistory = trimOrderHistory([normalized, ...withoutCurrent]);
+  await persistOrderHistory();
+  return normalized;
+}
+
+function sendOrderEventToClient(client, eventName, payload) {
+  try {
+    client.write(`event: ${eventName}\n`);
+    client.write(`data: ${JSON.stringify(payload)}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function broadcastOrderUpdate(orderRecord) {
+  const payload = {
+    type: 'order_update',
+    order: toPublicOrder(orderRecord),
+    sent_at: new Date().toISOString()
+  };
+
+  for (const client of orderStreamClients) {
+    const sent = sendOrderEventToClient(client, 'update', payload);
+    if (!sent) {
+      orderStreamClients.delete(client);
+    }
+  }
 }
 
 const PAYMENT_METHODS = [
@@ -220,18 +361,61 @@ app.post('/print', async (req, res) => {
       order.payment_status = 'paid';
     }
 
-    await printOrder(order);
+    let historyRecord = buildOrderHistoryRecord(order, 'recebido');
+    try {
+      historyRecord = await upsertOrderHistoryRecord(historyRecord);
+      broadcastOrderUpdate(historyRecord);
+    } catch (historyError) {
+      console.warn('Nao foi possivel registrar pedido no historico:', historyError?.message || historyError);
+    }
+
+    try {
+      await printOrder(order);
+      historyRecord = {
+        ...historyRecord,
+        status: 'impresso',
+        print_error: '',
+        updated_at: new Date().toISOString(),
+        printed_at: new Date().toISOString()
+      };
+
+      try {
+        historyRecord = await upsertOrderHistoryRecord(historyRecord);
+        broadcastOrderUpdate(historyRecord);
+      } catch (historyError) {
+        console.warn('Nao foi possivel atualizar status de impressao no historico:', historyError?.message || historyError);
+      }
+    } catch (printError) {
+      const printReason = printError instanceof Error ? printError.message : 'Erro desconhecido';
+      historyRecord = {
+        ...historyRecord,
+        status: 'falha_impressao',
+        print_error: printReason,
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        historyRecord = await upsertOrderHistoryRecord(historyRecord);
+        broadcastOrderUpdate(historyRecord);
+      } catch (historyError) {
+        console.warn('Nao foi possivel atualizar falha de impressao no historico:', historyError?.message || historyError);
+      }
+
+      throw Object.assign(new Error(printReason), { orderId: historyRecord.id });
+    }
 
     return res.status(201).json({
       ok: true,
       message: 'Pedido enviado para impressao',
-      orderId: String(order.id)
+      orderId: String(historyRecord.id),
+      printStatus: 'impresso'
     });
   } catch (error) {
     console.error('Falha na impressao direta:', error);
     return res.status(500).json({
       error: 'Falha ao imprimir pedido',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
+      details: error instanceof Error ? error.message : 'Erro desconhecido',
+      orderId: error?.orderId ? String(error.orderId) : undefined
     });
   }
 });
@@ -306,19 +490,80 @@ app.post('/pix/verify', async (req, res) => {
   }
 });
 
+app.get('/orders', async (req, res) => {
+  const rawLimit = Number(req.query?.limit);
+  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(200, Math.trunc(rawLimit))) : 80;
+
+  if (orderHistory.length > 0) {
+    return res.json({
+      ok: true,
+      source: 'local_store',
+      orders: orderHistory.slice(0, limit).map(toPublicOrder)
+    });
+  }
+
+  if (pool && databaseReady) {
+    const result = await pool.query('SELECT * FROM orders ORDER BY created_at DESC LIMIT $1', [limit]);
+    return res.json({
+      ok: true,
+      source: 'database',
+      orders: result.rows.map((row, index) => toPublicOrder(normalizeOrderHistoryRecord(row, index)))
+    });
+  }
+
+  return res.json({
+    ok: true,
+    source: 'empty',
+    orders: []
+  });
+});
+
+app.get('/orders/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  orderStreamClients.add(res);
+  sendOrderEventToClient(res, 'ready', {
+    ok: true,
+    message: 'Canal de pedidos conectado',
+    sent_at: new Date().toISOString()
+  });
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch {
+      clearInterval(heartbeat);
+      orderStreamClients.delete(res);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    orderStreamClients.delete(res);
+  });
+});
+
 app.get('/orders/:id', async (req, res) => {
-  if (!pool || !databaseReady) {
-    return res.status(503).json({ error: 'Banco de dados nao configurado' });
+  const orderId = sanitizeText(req.params?.id, 60);
+  const fromHistory = findOrderInHistory(orderId);
+  if (fromHistory) {
+    return res.json(toPublicOrder(fromHistory));
   }
 
-  const { id } = req.params;
-  const result = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
-
-  if (result.rows.length === 0) {
-    return res.status(404).json({ error: 'Pedido nao encontrado' });
+  if (pool && databaseReady) {
+    const result = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (result.rows.length > 0) {
+      return res.json(toPublicOrder(normalizeOrderHistoryRecord(result.rows[0], 0)));
+    }
   }
 
-  return res.json(result.rows[0]);
+  return res.status(404).json({ error: 'Pedido nao encontrado' });
 });
 
 app.get('/health', async (_req, res) => {
@@ -342,7 +587,12 @@ app.get('/health', async (_req, res) => {
     databaseEnabled: databaseEnabled && databaseReady,
     pixGatewayConfigured: false,
     pixMode: 'mock',
-    printer
+    printer,
+    orders: {
+      totalCached: orderHistory.length,
+      latestOrderId: orderHistory[0]?.id || null,
+      latestStatus: orderHistory[0]?.status || null
+    }
   });
 });
 
@@ -368,6 +618,7 @@ app.get('*', (req, res, next) => {
 
 app.listen(port, async () => {
   try {
+    await loadOrderHistory();
     await ensureSchema();
     console.log(`Servidor rodando em http://localhost:${port}`);
   } catch (error) {

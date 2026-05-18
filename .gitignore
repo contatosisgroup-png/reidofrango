@@ -12,6 +12,7 @@ restaurant-print-service/.env
 # Logs
 *.log
 restaurant-print-service/*.log
+restaurant-print-service/orders-store.json
 
 # Backups and temp
 *.bak

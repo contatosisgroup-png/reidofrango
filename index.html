@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260509">
+  <link rel="stylesheet" href="styles.css?v=20260518">
 </head>
 <body>
   <div class="page-bg" aria-hidden="true"></div>
@@ -29,7 +29,7 @@
         <a href="#contato">Contato</a>
       </nav>
       <button class="btn btn-secondary admin-shortcut-btn" type="button" id="openAdminBtn" aria-label="Abrir área administrativa">Admin</button>
-      <a class="btn btn-primary nav-cta nav-cart-icon" href="checkout.html" aria-label="Abrir checkout" title="Abrir checkout">&#128722;</a>
+      <a class="btn btn-primary nav-cta nav-cart-icon" href="checkout.html#pedidos" aria-label="Abrir checkout" title="Abrir checkout">&#128722;</a>
     </div>
   </header>
 
@@ -55,7 +55,7 @@
         <h1 id="heroTitle"></h1>
         <p id="heroText"></p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="checkout.html">Fazer pedido</a>
+          <a class="btn btn-primary btn-order-highlight" href="checkout.html#pedidos">Fazer pedido</a>
           <a class="btn btn-ghost" href="#promocao">Ver promoção</a>
         </div>
       </div>
@@ -167,7 +167,7 @@
           <li>Pagamento transparente com cálculo de troco</li>
           <li>Impressão automática no restaurante</li>
         </ul>
-        <a class="btn btn-primary" href="checkout.html">Ir para o checkout</a>
+        <a class="btn btn-primary" href="checkout.html#pedidos">Ir para o checkout</a>
       </div>
 
       <div class="contact-card">
@@ -257,6 +257,16 @@
           </section>
 
           <section class="admin-section">
+            <h3>Pedidos em tempo real</h3>
+            <div class="admin-orders-tools">
+              <button type="button" class="btn btn-ghost" id="adminOrdersRefreshBtn">Atualizar pedidos</button>
+              <p id="adminPrintHealth" class="admin-tip"></p>
+            </div>
+            <p id="adminOrdersStatus" class="admin-status" aria-live="polite"></p>
+            <div id="adminOrdersList" class="admin-orders-list"></div>
+          </section>
+
+          <section class="admin-section">
             <h3>Pratos e imagens</h3>
             <div id="adminItemsEditor" class="admin-items"></div>
           </section>
@@ -278,7 +288,7 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260518"></script>
 </body>
 </html>
 
