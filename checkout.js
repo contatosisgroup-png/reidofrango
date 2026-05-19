@@ -207,6 +207,8 @@ const checkoutNoteEl = document.getElementById("checkoutNote");
 const checkoutCouponInputEl = document.getElementById("checkoutCouponInput");
 const applyCouponBtnEl = document.getElementById("applyCouponBtn");
 const couponStatusEl = document.getElementById("couponStatus");
+const marmitaSizeEl = document.getElementById("marmitaSize");
+const customerObservationsEl = document.getElementById("customerObservations");
 const menuToggleEl = document.querySelector(".menu-toggle");
 const mainNavEl = document.querySelector(".main-nav");
 
@@ -235,6 +237,8 @@ const ORDER_ENTRY_ALIASES = new Set(["pedidos", "pedido", "orders", "order"]);
 let selectedItems = {};
 let selectedAddons = [];
 let appliedCouponCode = "";
+let selectedMarmitaSize = "";
+let customerObservations = "";
 let checkoutSubmitting = false;
 let activeSiteData = null;
 let runtimeConfigPromise = null;
@@ -844,7 +848,9 @@ function saveCheckoutState() {
     selectedAddons,
     appliedCouponCode,
     deliveryZone: sanitizeText(checkoutDeliveryZoneEl.value, 20),
-    zip: sanitizeText(checkoutZipEl.value, 12)
+    zip: sanitizeText(checkoutZipEl.value, 12),
+    marmitaSize: sanitizeText(selectedMarmitaSize, 20),
+    customerObservations: sanitizeText(customerObservations, 120)
   };
   localStorage.setItem(STORAGE_KEYS.checkoutState, JSON.stringify(payload));
 }
@@ -880,6 +886,16 @@ function loadCheckoutState() {
 
   if (saved.zip) {
     checkoutZipEl.value = sanitizeText(saved.zip, 12);
+  }
+
+  if (saved.marmitaSize) {
+    selectedMarmitaSize = sanitizeText(saved.marmitaSize, 20);
+    marmitaSizeEl.value = selectedMarmitaSize;
+  }
+
+  if (saved.customerObservations) {
+    customerObservations = sanitizeText(saved.customerObservations, 120);
+    customerObservationsEl.value = customerObservations;
   }
 }
 
@@ -1085,6 +1101,11 @@ function buildPrintPayload(customer, addonIds, totals) {
     });
   });
 
+  const marmitaSizeLabel = selectedMarmitaSize ? `Tamanho: ${selectedMarmitaSize}` : "";
+  const observationsLabel = customerObservations ? `Observações: ${customerObservations}` : "";
+  const noteParts = [customer.note, marmitaSizeLabel, observationsLabel].filter(Boolean);
+  const combinedNote = noteParts.join(" | ");
+
   return {
     customerName: customer.name,
     customerPhone: customer.phone,
@@ -1096,14 +1117,16 @@ function buildPrintPayload(customer, addonIds, totals) {
     amountPaid: totals.amountPaid,
     changeDue: totals.changeDue,
     paymentReference: totals.paymentReference || `PED${Date.now().toString().slice(-6)}`,
-    note: customer.note,
+    note: combinedNote,
     couponCode: appliedCouponCode || null,
     subtotal: totals.subtotal,
     extras: totals.extras,
     deliveryFee: totals.deliveryCharge,
     discount: totals.discount,
     items,
-    total: totals.total
+    total: totals.total,
+    marmitaSize: selectedMarmitaSize || null,
+    customerObservations: customerObservations || null
   };
 }
 
@@ -1289,6 +1312,17 @@ function setupCheckout() {
     saveCheckoutState();
   });
 
+  marmitaSizeEl.addEventListener("change", () => {
+    selectedMarmitaSize = sanitizeText(marmitaSizeEl.value, 20);
+    saveCheckoutState();
+    setStatus("Tamanho da quentinha atualizado.");
+  });
+
+  customerObservationsEl.addEventListener("input", () => {
+    customerObservations = sanitizeText(customerObservationsEl.value, 120);
+    saveCheckoutState();
+  });
+
   applyCouponBtnEl.addEventListener("click", () => {
     applyCouponFromInput();
   });
@@ -1333,6 +1367,9 @@ function setupCheckout() {
       return;
     }
 
+    selectedMarmitaSize = sanitizeText(marmitaSizeEl.value, 20);
+    customerObservations = sanitizeText(customerObservationsEl.value, 120);
+
     const payload = buildPrintPayload(customer, selectedAddons, totals);
 
     try {
@@ -1350,7 +1387,11 @@ function setupCheckout() {
       selectedItems = {};
       selectedAddons = [];
       appliedCouponCode = "";
+      selectedMarmitaSize = "";
+      customerObservations = "";
       checkoutCouponInputEl.value = "";
+      marmitaSizeEl.value = "";
+      customerObservationsEl.value = "";
       clearCheckoutState();
       renderAddons(selectedAddons);
       refreshCheckoutUI();
